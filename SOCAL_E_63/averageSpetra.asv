@@ -1,0 +1,50 @@
+% xwav tables:
+load('D:\SOCAL_E_63\xwavTables\SOCAL_E_63_EE_C4_xwavLookupTable');
+XH{1} = xwavTable;
+load('D:\SOCAL_E_63\xwavTables\SOCAL_E_63_EW_C4_xwavLookupTable');
+XH{2} = xwavTable;
+load('D:\SOCAL_E_63\xwavTables\SOCAL_E_63_EN_xwavLookupTable');
+XH{3} = xwavTable;
+load('D:\SOCAL_E_63\xwavTables\SOCAL_E_63_ES_xwavLookupTable');
+XH{4} = xwavTable;
+
+fn{1} = 'D:\SOCAL_E_63\tracking\interns2022\Grace\SOCAL_E_63_detections_track369_180520_120810_corrAngle.mat';
+fn{2} = 'D:\SOCAL_E_63\tracking\interns2022\ericEdits_allTracks\track369_180520_120810\SOCAL_E_63_detections_track369_180520_120810_ericMod.mat';
+fn{3} = 'D:\SOCAL_E_63\tracking\interns2022\ericEdits_allTracks\track30_180324_205700\SOCAL_E_63_detections_track30_180324_205700_ericMod.mat';
+fn{4} = 'D:\SOCAL_E_63\tracking\interns2022\ericEdits_allTracks\track15_180320_060600\SOCAL_E_63_detections_track15_180320_060600_ericMod.mat';
+fn{5} = 'D:\SOCAL_E_63\tracking\interns2022\ericEdits_allTracks\track179_180422_091708\SOCAL_E_63_detections_track179_180422_091708_ericMod.mat';
+
+twin = .001/spd;
+
+fs = 100e3;
+
+[b, a] = ellip(4,0.1,40,20e3*2/fs,'high');
+
+Nfft = 1024;
+
+f = fs*(0:(Nfft/2))/Nfft;
+
+Xsum = zeros(size(f));
+n = 0;
+for nfile = 1:numel(fn)
+    load(fn{nfile})
+    for ninst = 1:2
+        for nd = 1:length(DET{ninst}.TDet)
+    n = n+1;
+            [x, t] = quickxwavRead(DET{ninst}.TDet(nd) - twin, DET{ninst}.TDet(nd) + twin, fs, XH{ninst});
+
+            xf = filtfilt(b,a,x(:,1));
+            
+            X = fft(xf, Nfft);
+            Xsum = Xsum + X(1:Nfft/2+1).';
+%             plot(f, abs(X(1:Nfft/2+1)))
+%             plot(t, xf)
+%             ok = 1;
+        end
+    end
+end
+%%
+Xave
+plot(f, abs(Xsum))
+
+beta = 

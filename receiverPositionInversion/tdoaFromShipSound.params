@@ -1,0 +1,12 @@
+% PARAMS file for tdoaFromShipSound
+
+global shipTDOA
+
+shipTDOA.loadSegmentSize = 30; % size of the segment to load (seconds)
+shipTDOA.xcovSegmentSize = 1;  % size of window used in xcov (seconds)
+
+shipTDOA.fs = 100e3; % Sampling rate
+
+shipTDOA.fc = [100, 10000]; % cutoff frequencies of bandpass filter
+
+shipTDOA.ixcov = [2, 3, 4, 7, 8, 12]; % columns of xcov to use for TDOA

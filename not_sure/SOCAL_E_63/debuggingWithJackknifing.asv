@@ -1,0 +1,477 @@
+c = 1488.4;
+
+load('D:\SOCAL_E_63\xwavTables\instrumentLocs.mat')
+hydLoc{1} = hLatLonZ(1,:);
+hydLoc{2} = hLatLonZ(2,:);
+hydLoc{3} = hLatLonZ(3,:);
+hydLoc{4} = hLatLonZ(4,:);
+
+h0 = mean([hydLoc{1}; hydLoc{2}]);
+
+% convert hydrophone locations to meters:
+[h1(1), h1(2)] = latlon2xy_wgs84(hydLoc{1}(1), hydLoc{1}(2), h0(1), h0(2));
+h1(3) = abs(h0(3))-abs(hydLoc{1}(3));
+
+[h2(1), h2(2)] = latlon2xy_wgs84(hydLoc{2}(1), hydLoc{2}(2), h0(1), h0(2));
+h2(3) = abs(h0(3))-abs(hydLoc{2}(3));
+
+[h3(1), h3(2)] = latlon2xy_wgs84(hydLoc{3}(1), hydLoc{3}(2), h0(1), h0(2));
+h3(3) = abs(h0(3))-abs(hydLoc{3}(3));
+
+[h4(1), h4(2)] = latlon2xy_wgs84(hydLoc{4}(1), hydLoc{4}(2), h0(1), h0(2));
+h4(3) = abs(h0(3))-abs(hydLoc{4}(3));
+
+hloc = [h1;h2;h3;h4];
+hloc(:,3) = hloc(:,3) + [6, 6, 10, 10].';
+
+hyd1 = load('D:\SOCAL_E_63\tracking\experiments\inverseProblem\matfiles\SOCAL_E_63_EE_Hmatrix_fromHydLocInversion_210702.mat');
+hyd2 = load('D:\SOCAL_E_63\tracking\experiments\inverseProblem\matfiles\SOCAL_E_63_EW_Hmatrix_fromHydLocInversion_210702.mat');
+
+% HEW = H;
+
+% Reorder hydrophones to fit new TDOA order
+H{1} = [hyd1.hydPos(2,:)-hyd1.hydPos(1,:);
+    hyd1.hydPos(3,:)-hyd1.hydPos(1,:);
+    hyd1.hydPos(4,:)-hyd1.hydPos(1,:);
+    hyd1.hydPos(3,:)-hyd1.hydPos(2,:);
+    hyd1.hydPos(4,:)-hyd1.hydPos(2,:);
+    hyd1.hydPos(4,:)-hyd1.hydPos(3,:)];
+
+H{2} = [hyd2.hydPos(2,:)-hyd2.hydPos(1,:);
+    hyd2.hydPos(3,:)-hyd2.hydPos(1,:);
+    hyd2.hydPos(4,:)-hyd2.hydPos(1,:);
+    hyd2.hydPos(3,:)-hyd2.hydPos(2,:);
+    hyd2.hydPos(4,:)-hyd2.hydPos(2,:);
+    hyd2.hydPos(4,:)-hyd2.hydPos(3,:)];
+
+% load drift:
+load('D:\SOCAL_E_63\tracking\experiments\clockSync\drift.mat');
+dp{1} = coeffvalues(Dpoly{1}); % drift coefficients between inst 1 and 2
+dp{2} = coeffvalues(Dpoly{2}); % drift coefficients between inst 1 and 3
+dp{3} = coeffvalues(Dpoly{3}); % drift coefficients between inst 1 and 4
+dp{4} = coeffvalues(Dpoly{4}); % drift coefficients between inst 2 and 3
+dp{5} = coeffvalues(Dpoly{5}); % drift coefficients between inst 2 and 4
+dp{6} = coeffvalues(Dpoly{6}); % drift coefficients between inst 3 and 4
+
+%%
+
+load('D:\SOCAL_E_63\tracking\interns2022\ericEdits_allTracks\track600_180611_110414\SOCAL_E_63_track600_180611_110414_ericMod_localized.mat')
+% load('D:\SOCAL_E_63\tracking\interns2022\ericEdits_allTracks\track19_180323_104620\SOCAL_E_63_track19_180323_104620_ericMod_localized.mat')
+% load('D:\SOCAL_E_63\tracking\interns2022\ericEdits_allTracks\track32_180325_033618\SOCAL_E_63_track32_180325_033618_ericMod_localized.mat')
+
+wn = 1;
+% whale = localize(whale, hloc, H{1}, H{2}, dp)
+
+% save('D:\SOCAL_E_63\tracking\interns2022\ericEdits_allTracks\track600_180611_110414\SOCAL_E_63_track600_180611_110414_ericMod_localized.mat', 'whale')
+
+%%
+
+figure(50)
+for sp = 1:3
+    subplot(3,2,2*sp-1)
+    plot(whale{wn}.TDet, whale{wn}.wloc(:,sp), '.')
+end
+
+for sp = 1:6
+    subplot(6,2,2*sp)
+    plot(whale{wn}.TDet, whale{wn}.TDOA(:,12+sp), '.')
+end
+
+%%
+whaleIn = whale;
+whaleIn{1}.wloc(:,3) = whaleIn{1}.wloc(:,3) + h0(3);
+brushTDOA(whaleIn, H, 'brushing.params')
+%%
+xv = linspace(-2000, 2000, 101);
+yv = linspace(-2000, 2000, 101);
+zv = linspace(0, 1300, 101);
+[mTDOA, mwloc] = makeModel(xv, yv, zv, hloc, H{1}, H{2}, c);
+
+%%
+
+global LOC
+loadParams('localize.params')
+
+sig2sml = LOC.sig_sml^2; % variance of small ap
+sig2lrg = LOC.sig_lrg^2; % variance of large ap
+
+detUse = find(sum(~isnan(whale{wn}.TDOA),2)==18);
+
+for ndet = 1:length(detUse)
+    detInd = detUse(ndet);
+    TDOA = whale{wn}.TDOA(detInd, :);
+    wloc = whale{wn}.wloc(detInd, :);
+    WLOC.TDet(ndet) = whale{wn}.TDet(detInd);
+
+    drift = zeros(1, 6);
+    for ntdoa = 1:6
+        drift(ntdoa) = polyval(dp{ntdoa}, whale{wn}.TDet(detInd));
+    end
+
+    TDOA(13:end) = TDOA(13:end) + LOC.driftSign.*drift;
+
+    Isml = find(~isnan(TDOA(1:12))); % indices of small ap used
+    Ilrg = find(~isnan(TDOA(13:end)))+12; % indices of large ap used
+
+    Asml = (2*pi*sig2sml)^(-length(Isml)/2); % coefficient of small ap
+    Alrg = (2*pi*sig2lrg)^(-length(Ilrg)/2); % coefficient of large ap
+
+    Lsml = Asml*exp(-1./(2.*sig2sml).*sum((mTDOA(:,1:12)-TDOA(1:12)).^2, 2, 'omitnan'));
+    Llrg = Alrg*exp(-1./(2.*sig2lrg).*sum((mTDOA(:,13:end)-TDOA(13:end)).^2, 2, 'omitnan'));
+    L = Lsml.*Llrg;
+
+    [~, IbestSml] = max(Lsml);
+    [~, IbestLrg] = max(Llrg);
+    [~, Ibest] = max(L);
+
+    WLOC.sml(ndet, :) = mwloc(IbestSml, :);
+    WLOC.lrg(ndet, :) = mwloc(IbestLrg, :);
+    WLOC.combined(ndet, :) = mwloc(Ibest, :);
+
+    % jack-knife:
+
+    % inst 1,3,4:
+    Isml = 1:6;
+    Ilrg = [2,3,6];
+
+    Asml = (2*pi*sig2sml)^(-length(Isml)/2); % coefficient of small ap
+    Alrg = (2*pi*sig2lrg)^(-length(Ilrg)/2); % coefficient of large ap
+
+    Lsml = Asml*exp(-1./(2.*sig2sml).*sum((mTDOA(:,Isml)-TDOA(Isml)).^2, 2, 'omitnan'));
+    Llrg = Alrg*exp(-1./(2.*sig2lrg).*sum((mTDOA(:,Ilrg)-TDOA(Ilrg+12)).^2, 2, 'omitnan'));
+    L = Lsml.*Llrg;
+
+    [~, Ibest] = max(L);
+
+    WLOC.i134(ndet, :) = mwloc(Ibest, :);
+
+    % inst 2,3,4:
+    Isml = 7:12;
+    Ilrg = [4,5,6];
+
+    Asml = (2*pi*sig2sml)^(-length(Isml)/2); % coefficient of small ap
+    Alrg = (2*pi*sig2lrg)^(-length(Ilrg)/2); % coefficient of large ap
+
+    Lsml = Asml*exp(-1./(2.*sig2sml).*sum((mTDOA(:,Isml)-TDOA(Isml)).^2, 2, 'omitnan'));
+    Llrg = Alrg*exp(-1./(2.*sig2lrg).*sum((mTDOA(:,Ilrg)-TDOA(Ilrg)).^2, 2, 'omitnan'));
+    L = Lsml.*Llrg;
+
+    [~, Ibest] = max(L);
+
+    WLOC.i234(ndet, :) = mwloc(Ibest, :);
+
+end
+
+%%
+figure(61)
+for sp = 1:3
+    subplot(3,1,sp)
+    plot(WLOC.TDet, WLOC.sml(:,sp), 'x', 'linewidth', 2)
+    hold on
+    plot(WLOC.TDet, WLOC.lrg(:,sp), 'o')
+    plot(WLOC.TDet, WLOC.combined(:,sp), '.')
+    plot(WLOC.TDet, WLOC.i134(:,sp), 'o', 'markersize', 4)
+    plot(WLOC.TDet, WLOC.i234(:,sp), 'o', 'markersize', 4)
+    %     plot(whale{wn}.TDet(detUse), whale{wn}.wloc(detUse, sp), 'o', 'markersize', 3)
+    %     plot(whale{wn}.TDet, whale{wn}.wloc(:, sp), '.')
+    hold off
+    datetick
+end
+legend('small', 'large', 'combined', '1,3,4', '2,3,4')
+
+
+%%
+% invert for H matrices from large ap localizations
+tdoa = whale{wn}.TDOA(detUse, 1:6);
+s = WLOC.lrg - hloc(1,:);
+s = s./sqrt(sum(s.^2,2));
+D = c.*tdoa;
+Hnew{1} = D\s;
+
+tdoa = whale{wn}.TDOA(detUse, 7:12);
+s = WLOC.lrg - hloc(2,:);
+s = s./sqrt(sum(s.^2,2));
+D = c.*tdoa;
+Hnew{2} = D\s;
+
+%%
+I = randi(length(mwloc), 1);
+figure(510)
+plot(hloc(:,1), hloc(:,2), 'o')
+axis([-2000, 2000, -2000, 2000])
+pbaspect([1,1,1])
+grid on
+
+hold on
+plot(mwloc(I, 1), mwloc(I, 2), 'rx')
+hold off
+
+fprintf('\nz=%d\n', mwloc(I, 3))
+fprintf('TDOA = %f\n', mTDOA(I, 13:18))
+
+
+%%
+
+WR.Wloc(1) = randi(4000, 1) - 2000;
+WR.Wloc(2) = randi(4000, 1) - 2000;
+WR.Wloc(3) = randi(1000, 1);
+
+[WR.TDOA, WR.wloc] = makeModel(WR.Wloc(1), WR.Wloc(2), WR.Wloc(3), hloc, H{1}, H{2}, c);
+
+%%
+% assume combined is correct, what are expected TDOAs?
+
+for n = 1:length(WLOC.combined)
+
+    [tdoa_temp, wloc_temp] = makeModel(WLOC.combined(n, 1), WLOC.combined(n, 2), WLOC.combined(n, 3), hloc, H{1}, H{2}, c);
+    expTDOA(n, :) = tdoa_temp;
+    expWloc(n, :) = wloc_temp;
+end
+
+driftVec = zeros(1,18);
+driftVec(13:18) = drift;
+figure(400)
+for sp = 1:18
+    subplot(3,6,sp)
+    plot(WLOC.TDet, expTDOA(:, sp), '.');
+    hold on
+    plot(whale{wn}.TDet(detUse), whale{wn}.TDOA(detUse, sp)-driftVec(sp), '.')
+    hold off
+end
+
+
+%% make two whale paths that somewhat match the offset in track600. See what the TDOAs look like, compare to track 600 TDOAs
+wsynth1(1, :) = linspace(-1000, 100, 1000);
+wsynth1(2, :) = linspace(-1200, -200, 1000);
+wsynth1(3, :) = linspace(25, 119, 1000);
+
+wsynth2(1, :) = linspace(-900, 200, 1000);
+wsynth2(2, :) = linspace(-1200, -200, 1000);
+wsynth2(3, :) = linspace(25, 119, 1000);
+
+for n = 1:1000
+    [expTDOA1(n, :), ~] = makeModel(wsynth1(1, n), wsynth1(2, n), wsynth1(3, n), h, H{1}, H{2}, c);
+    [expTDOA2(n, :), ~] = makeModel(wsynth2(1, n), wsynth2(2, n), wsynth2(3, n), h, H{1}, H{2}, c);
+end
+
+figure(708)
+plot3(wsynth1(1,:), wsynth1(2,:), wsynth1(3,:));
+hold on
+plot3(wsynth2(1,:), wsynth2(2,:), wsynth2(3,:));
+hold off
+
+
+figure(709)
+for sp = 1:18
+    subplot(3,6,sp)
+    plot(expTDOA1(:, sp), '.');
+    hold on
+    plot(expTDOA2(:, sp), '.');
+    hold off
+end
+
+
+figure(710)
+for sp = 1:18
+    subplot(3,6,sp)
+    plot(expTDOA1(:, sp)-expTDOA2(:, sp), '.');
+
+
+
+end
+
+
+%%
+
+for n = 1:length(expTDOA1)
+    Lsml = 
+end
+
+%% plot expected TDOAs of estimated whale locations -- all instrument combos
+
+col = jet(10)
+
+Iuse = find(~isnan(whale{wn}.wloc(:,1)));
+
+NTDOA = sum(~isnan(whale{wn}.TDOA), 2); % # of TDOAs used
+
+for i = 1:length(Iuse)
+    detOn(1) = num2str(~isnan(whale{wn}.TDOA(Iuse(i), 1)));
+    detOn(2) = num2str(~isnan(whale{wn}.TDOA(Iuse(i), 7)));
+    detOn(3) = num2str(~isnan(whale{wn}.TDOA(Iuse(i), 14)) || ~isnan(whale{wn}.TDOA(Iuse(i), 16)));
+    detOn(4) = num2str(~isnan(whale{wn}.TDOA(Iuse(i), 15)) || ~isnan(whale{wn}.TDOA(Iuse(i), 17)));
+
+    switch detOn
+        case '1111'
+            colnum(i) = 1;
+        case '1110'
+            colnum(i) = 2;
+        case '1101'
+            colnum(i) = 3;
+        case '1100'
+            colnum(i) = 4;
+        case '1011'
+            colnum(i) = 5;
+        case '1010'
+            colnum(i) = 6;
+        case '1001'
+            colnum(i) = 7;
+        case '0111'
+            colnum(i) = 8;
+        case '0110'
+            colnum(i) = 9;
+        case '0101'
+            colnum(i) = 10;
+    end
+
+    wloc = whale{wn}.wloc(Iuse(i), :);
+
+    [tdoa_temp, ~] = makeModel(wloc(1), wloc(2), wloc(3), hloc, H{1}, H{2}, c);
+
+    tdoaMeas_all(i, :) = whale{wn}.TDOA(Iuse(i), :);
+    tdoaExp_all(i, :) = tdoa_temp;
+    tdet_all(i) = whale{wn}.TDet(Iuse(i));
+    wloc_all(i, :) = wloc;
+end
+
+nm{1} = 'Array 1';
+nm{2} = 'Array 2';
+nm{3} = 'Large ap';
+
+for nh = 1:3
+    for sp = 1:6
+
+        figure(40+nh)
+        subplot(6,1,sp)
+        scatter(tdet_all, tdoaMeas_all(:,sp + 6*(nh-1)) - driftVec(sp + 6*(nh-1)) - tdoaExp_all(:, sp+6*(nh-1)), 20, col(colnum, :), 'x')
+%         hold on
+%         scatter(tdet_all, tdoaExp_all(:,sp + 6*(nh-1)), 11, col(colnum, :), 'filled')
+%         hold off
+        datetick
+        grid on
+       
+    end
+    sgtitle(nm{nh})
+    legend('measured', 'expected')
+end
+
+
+
+
+%%
+% global Hdata
+% Hdata.H = H;
+% Hdata.hloc = h;
+% Hdata.c = c;
+% Hdata.TDOA = whale{wn}.TDOA(detUse, :);
+% Hdata.TDOA(:, 13:18) = Hdata.TDOA(:, 13:18) - drift;
+% Hdata.wloc = WLOC.sml;
+%
+% Irem = find(Hdata.wloc(:,1)>-900 | Hdata.wloc(:,2)>-900 | Hdata.wloc(:,3)<-100);
+% Hdata.wloc(Irem, :) = [];
+% Hdata.TDOA(Irem, :) = [];
+%
+% X0 = zeros(1,19);
+% % X0 = zeros(1,7);
+% % X0(2:7) = drift;
+% % X = fsolve(@err, zeros(1,12));
+%
+% Xupper = X0;
+% Xupper(1:12) = 100;
+% Xupper(13:18) = 0.1;
+% Xupper(19) = 20;
+%
+% Xlower = X0;
+% Xlower(1:12) = -100;
+% Xlower(13:18) = -0.1;
+% Xlower(19) = -20;
+%
+% Xmid = X0;
+% scl = ones(size(X0));
+% for niter = 1:1000
+%     % vary one variable at a time:
+%     for nx = 1:length(X0)
+%         xvec = linspace(Xlower(nx), Xupper(nx), 100);
+%         F = zeros(size(xvec));
+%         X = Xmid;
+%         for n = 1:100
+%             X(nx) = xvec(nx);
+%              F(n) = err(X);
+%
+%         end
+%
+%         ok = 1;
+%
+%     end
+%
+% end
+%
+% % F = err(zeros(1,19))
+% F = err(X);
+%
+% function Flms = err(X)
+% global Hdata
+%
+% Ndet = length(Hdata.TDOA);
+%
+% D1 = sqrt(sum((Hdata.wloc - (Hdata.hloc(1,:)+ X(1:3))).^2, 2));
+% D2 = sqrt(sum((Hdata.wloc - (Hdata.hloc(2,:)+ X(4:6))).^2, 2));
+% D3 = sqrt(sum((Hdata.wloc - (Hdata.hloc(3,:)+ X(7:9))).^2, 2));
+% D4 = sqrt(sum((Hdata.wloc - (Hdata.hloc(4,:)+ X(10:12))).^2, 2));
+%
+% % D1 = sqrt(sum((Hdata.wloc - (Hdata.hloc(1,:))).^2, 2));
+% % D2 = sqrt(sum((Hdata.wloc - (Hdata.hloc(2,:))).^2, 2));
+% % D3 = sqrt(sum((Hdata.wloc - (Hdata.hloc(3,:))).^2, 2));
+% % D4 = sqrt(sum((Hdata.wloc - (Hdata.hloc(4,:))).^2, 2));
+%
+% F(1:Ndet) = -(D1-D2) - (Hdata.c + X(19)).*(Hdata.TDOA(:, 13) + X(13));
+% F(Ndet+1:2*Ndet) = -(D1-D3) - (Hdata.c + X(19)).*(Hdata.TDOA(:, 14) + X(14));
+% F(2*Ndet+1:3*Ndet) = -(D1-D4) - (Hdata.c + X(19)).*(Hdata.TDOA(:, 15) + X(15));
+% F(3*Ndet+1:4*Ndet) = -(D2-D3) - (Hdata.c + X(19)).*(Hdata.TDOA(:, 16) + X(16));
+% F(4*Ndet+1:5*Ndet) = -(D2-D4) - (Hdata.c + X(19)).*(Hdata.TDOA(:, 17) + X(17));
+% F(5*Ndet+1:6*Ndet) = -(D3-D4) - (Hdata.c + X(19)).*(Hdata.TDOA(:, 18) + X(18));
+%
+% Flms = sum(F.^2);
+% end
+
+%%
+function [TDOA, wloc] = makeModel(xv, yv, zv, h, H1, H2, c)
+
+% make wloc (matrix of whale positions)
+[cx, cy, cz] = ndgrid(xv, yv, zv);
+wloc = [cx(:), cy(:), cz(:)];
+
+s1 = wloc-h(1, :);
+r1 = sqrt(sum(s1.^2, 2)); % range to instrument 1
+s1 = s1./r1; % direction vector to instrument 1
+
+s2 = wloc-h(2, :);
+r2 = sqrt(sum(s2.^2, 2)); % range to instrument 2
+s2 = s2./r2; % direction vector to instrument 2
+
+s3 = wloc-h(3, :);
+r3 = sqrt(sum(s3.^2, 2)); % range to instrument 3
+
+s4 = wloc-h(4, :);
+r4 = sqrt(sum(s4.^2, 2)); % range to instrument 4
+
+% small aperture TDOAs
+TDOA(:, 1:6) = (s1*H1.')./c;
+TDOA(:, 7:12) = (s2*H2.')./c;
+
+% large aperture TDOAs
+TDOA(:, 13) = (r1-r2)./c;
+TDOA(:, 14) = (r1-r3)./c;
+TDOA(:, 15) = (r1-r4)./c;
+TDOA(:, 16) = (r2-r3)./c;
+TDOA(:, 17) = (r2-r4)./c;
+TDOA(:, 18) = (r3-r4)./c;
+
+ok = 1;
+
+end
+
+
+%%
+
+

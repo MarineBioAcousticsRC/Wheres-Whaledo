@@ -1,0 +1,30 @@
+% DEFAULT PARAMETER FILE
+
+global LOC % initialize global variable
+
+% Min/max ranges of grid search:
+LOC.wxlim = [-4000, 4000];
+LOC.wylim = [-4000, 4000];
+LOC.wzlim = [-100, 1350];
+
+LOC.Nx = 51; % number of grid points in x
+LOC.Ny = 51; % number of grid points in y
+LOC.Nz = 31; % number of grid points in z
+
+LOC.c = 1488.4; % speed of sound
+
+LOC.niter = 2; % number of iterative model generations used to converge on whale location
+
+LOC.minNumTDOA = 7; % minimum number of TDOAs required to localize
+% Old values: 
+%LOC.sig_sml = 4.12e-04;
+%LOC.sig_lrg = 0.0263;
+
+% New values
+LOC.sig_sml = .265e-3;
+%LOC.sig_sml = .201e-3;
+LOC.sig_lrg = 10.6e-3;
+
+LOC.driftSign = -1; % =1 if drift is added to TDOA, =-1 if drift is subtracted from TDOA
+
+LOC.topPercent = 1; % top 1% of values in L will be used for next iteration.

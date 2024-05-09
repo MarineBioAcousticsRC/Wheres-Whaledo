@@ -1,0 +1,28 @@
+% DEFAULT PARAMETER FILE for whale association function whaleAss.m
+
+global CTCparam
+
+% deployment specific parameters:
+CTCparam.numInst = 4; % number of instruments (i.e. large aperture nodes)
+CTCparam.numTDOA = 18; % number of TDOAs in total
+CTCparam.indTDOA{1} = 1:6; % indices of TDOAs associated with array 1 small aperture
+CTCparam.indTDOA{2} = 7:12; % indices of TDOAs associated with array 2 small aperture
+CTCparam.indTDOA{3} = 13:18; % indices of TDOAs associated with large aperture
+
+CTCparam.hpair(1, :) = [1, 2]; % first large ap TDOA is inst1 - inst2
+CTCparam.hpair(2, :) = [1, 3]; % first large ap TDOA is inst1 - inst3
+CTCparam.hpair(3, :) = [1, 4]; % first large ap TDOA is inst1 - inst4
+CTCparam.hpair(4, :) = [2, 3]; % first large ap TDOA is inst2 - inst3
+CTCparam.hpair(5, :) = [2, 4]; % first large ap TDOA is inst2 - inst4
+CTCparam.hpair(6, :) = [3, 4]; % first large ap TDOA is inst3 - inst4
+
+
+% General CTC parameters:
+CTCparam.fsct = 10e3; % sampling rate used for click train correlation (Hz)
+CTCparam.twin= 30; % window size used in click train correlation (seconds)
+CTCparam.Nhann = round(20e-3*CTCparam.fsct); % number of elements in hanning window used in place of each detection
+CTCparam.Wk = hann(CTCparam.Nhann); % window used in place of each detection in a click train
+CTCparam.maxTDOA = 1100/1480 + .3; % maximum TDOA possible (distance between instruments / sound speed + potential drift) (NOTE: I overestimate this value to ensure I include all possible TDOAs)
+CTCparam.tCloseEnough = 30e-3; % how close should an "expected detection" be to a calculated detection to deserve being labeled
+CTCparam.peakRatio = .8; % In xcorr, how much bigger does the highest peak have to be than the 2nd highest peak to count as a unique detection, ie pk(1)*WAparam.peakRatio)>pk(2) means this gets counted as well-correlated
+CTCparam.maxLag = ceil(CTCparam.fsct*(1200/1485+.3)); % maximum lags possible, <sampling rate>*(<max distance between inst>/<speed of sound> + <max drift>)

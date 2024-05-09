@@ -1,0 +1,5 @@
+function det = brushData(T, X)
+
+fig = findall(0, 'Type', 'figure', 'name', 'Brush Detections'); % activate Brush Detections GUI (if it exists)
+
+nplot = numel(x); % number of 

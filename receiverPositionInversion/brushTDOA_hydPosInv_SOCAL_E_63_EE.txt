@@ -1,6 +1,0 @@
-% PARAMS file for brushTDOA_hydPosInv
-
-global TDOAbrush
-
-TDOAbrush.recLoc = [32.658806033186366,  -119.4770713898722, -1320.494833710183]; % Lat, Lon, and depth of receiver
-TDOAbrush.c = 1488.4; % speed of sound at receiver

@@ -1,0 +1,21 @@
+% DEFAULT PARAMETER FILE
+
+global brushing
+
+ % initialize global variable% Color scheme:
+brushing.params.colorMat(1, :) = [0.600000, 0.600000, 0.600000]; % acoustic data 
+brushing.params.colorMat(2, :) = [0.000000, 0.000000, 0.000000]; % Unlabeled detections 
+brushing.params.colorMat(3, :) = [0.984314, 0.603922, 0.600000]; % Whale 1 
+brushing.params.colorMat(4, :) = [0.890196, 0.101961, 0.109804]; % Whale 2 
+brushing.params.colorMat(5, :) = [0.756863, 0.874510, 0.541176]; % Whale 3 
+brushing.params.colorMat(6, :) = [0.219608, 0.725490, 0.027451]; % Whale 4 
+brushing.params.colorMat(7, :) = [0.992157, 0.749020, 0.435294]; % Whale 5 
+brushing.params.colorMat(8, :) = [0.121569, 0.470588, 0.705882]; % Whale 6 
+brushing.params.colorMat(9, :) = [0.650980, 0.807843, 0.890196]; % Whale 7 
+brushing.params.colorMat(10, :) = [0.415686, 0.239216, 0.603922]; % Whale 8 
+brushing.params.colorMat(11, :) = [0.792157, 0.698039, 0.839216]; % Buzzes 
+
+brushing.params.colorLegendPos = [1, 30, 200, 500]; % Label Color Legend Position 
+brushing.params.commandLegendPos = [1, 560, 175, 300]; % Keyboard command Legend Position 
+
+brushing.params.figPosition = [176, 41, 1744, 1017]; % Figure position

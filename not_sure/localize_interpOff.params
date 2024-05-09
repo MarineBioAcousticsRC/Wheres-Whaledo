@@ -1,0 +1,19 @@
+% DEFAULT PARAMETER FILE
+
+global LOC % initialize global variable
+
+LOC.c = 1488.4; % speed of sound
+
+LOC.R = (0:4000).'; % Range steps to each 4ch
+LOC.NMonteCarlo = 15; % Number of monte carlo iterations
+LOC.Nboot = 15; % number of bootstrap resamples taken
+LOC.largePairs = [1, 2; 1, 3; 1, 4; 2, 3; 2, 4; 3, 4]; % order of large ap TDOA pairs
+
+LOC.interp = 0; % =1 if you want to interp, =0 if you don't want to interp
+LOC.maxGap = 5*60;% Max gap that will be interpolated over. Gaps over this value will be skipped.
+
+% uncertainty values
+LOC.sig_sml = .265e-3;
+LOC.sig_lrg = 10.6e-3;
+
+LOC.driftSign = -1; % =1 if drift is added to TDOA, =-1 if drift is subtracted from TDOA

@@ -1,6 +1,6 @@
 # wheres-whaledo
 
-MATLAB toolkit for TDOA/DOA localization of odontocete echolocation clicks. Developed by Eric Snyder.
+MATLAB toolkit for TDOA/DOA localization of odontocete echolocation clicks.
 
 Snyder, E., Solsona-Berga, A., Baumann-Pickering, S., Frasier, K., Wiggins, S., & Hildebrand, J. (accepted). _Where's Whaledo_: A software toolkit for localization of animal vocalization. PLoS Computational Biology.
 

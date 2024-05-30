@@ -2,7 +2,7 @@
 
 global LOC_DOA % initialize global variable
 
-LOC_DOA.plotFlag = 0; % =1 if you want to plot, =0 if you don't want to plot
+LOC_DOA.plotFlag = 1; % =1 if you want to plot, =0 if you don't want to plot
 
 LOC_DOA.c = 1488.4; % estimated speed of sound
 

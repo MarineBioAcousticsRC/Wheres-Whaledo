@@ -69,7 +69,7 @@ for i = 1:length(df)
         end
     end
     
-    saveas(gcf,[myFile.folder,'\',trackNum,'_loc3D_DOA_smoothedfig']); % save the fig
+    saveas(gcf,[trackNum,'_loc3D_DOA_smoothedfig']); % save the fig
     save([myFile.folder,'\',trackNum,'_loc3D_DOA_whale'],'whale'); % save the whale struct
 
     close all

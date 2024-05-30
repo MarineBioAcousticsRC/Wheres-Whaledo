@@ -190,7 +190,7 @@ for wn = 1:length(colorNums) % iterate through each whale number
 
         if LOC_DOA.plotFlag
             scatter3(whale{wn}.wloc(:, 1), whale{wn}.wloc(:, 2), whale{wn}.wloc(:, 3), ...
-                24, brushing.params.colorMat(wn+2, :), 'filled')
+                24, LOC_DOA.colorMat(wn+2, :), 'filled')
         end
     end
 end

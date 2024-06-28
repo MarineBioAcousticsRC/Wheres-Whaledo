@@ -1,0 +1,21 @@
+% DEFAULT PARAMETER FILE
+
+global LOC_DOA % initialize global variable
+
+LOC_DOA.plotFlag = 1; % =1 if you want to plot, =0 if you don't want to plot
+
+LOC_DOA.c = 1488.4; % estimated speed of sound
+
+% Color scheme:
+LOC_DOA.colorMat(1, :) = [0.600000, 0.600000, 0.600000]; % acoustic data 
+LOC_DOA.colorMat(2, :) = [0.000000, 0.000000, 0.000000]; % Unlabeled detections 
+LOC_DOA.colorMat(3, :) = [0.984314, 0.603922, 0.600000]; % Whale 1 
+LOC_DOA.colorMat(4, :) = [0.756863, 0.874510, 0.541176]; % Whale 2 
+LOC_DOA.colorMat(5, :) = [0.650980, 0.807843, 0.890196]; % Whale 3 
+LOC_DOA.colorMat(6, :) = [0.992157, 0.749020, 0.435294]; % Whale 4 
+LOC_DOA.colorMat(7, :) = [0.121569, 0.470588, 0.705882]; % Whale 5 
+LOC_DOA.colorMat(8, :) = [0.792157, 0.698039, 0.839216]; % Whale 6 
+LOC_DOA.colorMat(9, :) = [0.219608, 0.725490, 0.027451]; % Whale 7 
+LOC_DOA.colorMat(10, :) = [0.415686, 0.239216, 0.603922]; % Whale 8 
+LOC_DOA.colorMat(11, :) = [0.890196, 0.101961, 0.109804]; % Buzzes
+

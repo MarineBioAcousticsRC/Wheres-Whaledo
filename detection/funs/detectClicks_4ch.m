@@ -30,7 +30,8 @@ idet = 1; % counter for number of detections
 ierr = 0; % error counter
 while t2<=tend
     try
-        [x, t] = readxwavSegment(t1, t2, XH);
+       % [x, t] = readxwavSegment(t1, t2, XH);
+       [x,t] = quickxwavRead(t1, t2, detParam.fs, XH);
     catch
         ierr = ierr+1;
         fprintf('\nerror in readxwavSegment, skipping segment (error counter=%d)\n', ierr)

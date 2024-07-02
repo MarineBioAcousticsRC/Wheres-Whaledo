@@ -6,4 +6,4 @@
 *.gitattributes text
 
 # assign .m files to MATLAB language to avoid missclassification
-/*/*.m linguist-language=matlab
+ano-dir/*.m linguist-language=matlab

@@ -6,4 +6,4 @@
 *.gitattributes text
 
 # assign .m files to MATLAB language to avoid missclassification
-DOA_small_aperture/funs/*.m linguist-language=matlab
+**.m linguist-language=matlab

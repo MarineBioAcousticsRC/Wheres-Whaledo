@@ -1,5 +1,8 @@
 function [whaleOut, varargout] = weightedSplineFit(whaleIn, smoothingParam)
 
+% note - make sure you have the Curve Fitting Toolbox from MATLAB
+% installed!
+
 whaleOut = whaleIn;
 spd = 24*60*60; % seconds per day
 

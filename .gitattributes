@@ -1,0 +1,7 @@
+# .gitattributes for Wheres-Whaledo
+
+# modified from the gitattributes repository! https://github.com/gitattributes/gitattributes.git
+# These files are text and should be normalized (Convert crlf => lf)
+*.gitattributes text
+
+*.m linguist-language=matlab

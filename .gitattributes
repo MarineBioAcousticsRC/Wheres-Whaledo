@@ -1,4 +1,4 @@
 # .gitattributes for Wheres-Whaledo
 
 # assign .m files to MATLAB language to avoid missclassification
-.m linguist-language=Matlab
+*.m linguist-language=Matlab

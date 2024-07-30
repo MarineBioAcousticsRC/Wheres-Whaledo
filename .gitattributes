@@ -2,4 +2,4 @@
 
 # assign .m files to MATLAB language to avoid missclassification
 * linguist-vendored
-*.m linguist-vendored=false
+*.m linguist-language=MATLAB

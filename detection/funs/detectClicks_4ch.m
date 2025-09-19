@@ -1,10 +1,10 @@
-function [detTable] = detectClicks_4ch(tstart, tend, XH, H, c, paramFile)
+function [detTable, f] = detectClicks_4ch(tstart, tend, XH, H, c, tf, paramFile)
 
 global detParam
 loadParams(paramFile)
 
 spd = 60*60*24;
-detParam.twintwin = 30; % 30 second window
+detParam.twin = 30; % 30 second window
 
 t1 = tstart;
 t2 = t1 + detParam.twin/spd;
@@ -17,12 +17,33 @@ end
 wb = waitbar(0, wbtext);
 
 % design filter:
-
 if length(detParam.fc)==1
     [b, a] = ellip(4,0.1,40,detParam.fc*2/detParam.fs,'high');
 else
     [b, a] = ellip(4,0.1,40,detParam.fc.*2/detParam.fs);
 end
+
+% calculate FFT parameters + transfer function offset, functions from Triton
+detParam.fftSize = ceil(detParam.fs * detParam.frameLengthUs / 1E6);
+detParam.fftWindow = hann(detParam.fftSize)';
+buff = detParam.buffer*detParam.fs; % calculate the number of samples to buffer on either side of the peak
+N = length(detParam.fftWindow);
+lowSpecIdx = round(detParam.bpRanges(1)/detParam.fs*detParam.fftSize);
+highSpecIdx = round(min(detParam.bpRanges(2),detParam.fs/2)/detParam.fs*detParam.fftSize);
+detParam.specRange = lowSpecIdx:highSpecIdx;
+detParam.tfFullFile = tf; % file path to transfer function
+detParam = sp_fn_interp_tf(detParam);
+f = 0:((detParam.fs/2)/1000)/((N/2)):((detParam.fs/2)/1000);
+f = f(detParam.specRange);
+sub = 10*log10(detParam.fs/N);
+
+% detParam.fftSize = ceil(detParam.fs * detParam.frameLengthUs / 1E6);
+% detParam.fftWindow = hann(detParam.fftSize)';
+% buff = detParam.buffer*detParam.fs; % calculate the number of samples to buffer on either side of the peak
+% N = length(detParam.fftWindow);
+% f = 0:((detParam.fs/2)/1000)/((N/2)):((detParam.fs/2)/1000);
+% f = f(detParam.specRange);
+% sub = 10*log10(detParam.fs/N);
 
 detTable = table;
 
@@ -42,12 +63,50 @@ while t2<=tend
     xf = filtfilt(b, a, x);
     if max(xf)>=detParam.th
         [pks, ind] = findpeaks(xf(:,1), 'minPeakHeight', detParam.th, 'minPeakDistance', detParam.minPkDist);
-
         tdet = t1 + ind/detParam.fs/spd; % times of detections
 
+        specClickTf = nan(length(pks),length(detParam.specRange));
+        peakFr = nan(length(pks));
+        ppSignal = nan(length(pks));
 
-        % calculate TDOA for each detection
-        for i = 1:length(ind)
+        % calculate click paramters for these detections
+        % code modified from Triton, SPICE Detector remora
+        for i = 1:length(ind) % for each detection
+
+            cStart = ind(i)-buff; % start sample to grab
+            cEnd = ind(i)+buff; % end sample to grab
+
+            % click spectrum
+            % pull out filtered click timeseries
+            clickBuff = xf(cStart:cEnd,1)'; % grab data
+            winLength = length(clickBuff); % calculate window length
+            wind = hann(winLength); % calcualte window
+            wClick = zeros(1,N); % preallocate
+            wClick = clickBuff.*wind.'; % window click
+            spClick = 20*log10(abs(fft(wClick,N))); % calculate spectra
+            spClickSub = spClick-sub; % account for bin width
+            spClickSub = spClickSub(:,1:N/2); % reduce data to first half of spectra
+            specClickTf(i,:) = spClickSub(detParam.specRange)+detParam.xfrOffset; % add tf offset
+
+            % calculate peak frequency
+            [valMx, posMx] = max(specClickTf(i,:));
+            peakFr(i) = f(posMx); %peak frequency in kHz
+
+            % calculate ppRL
+            % find lowest and highest number in timeseries (counts) and add those
+            high = max(clickBuff);
+            low = min(clickBuff);
+            ppCount = high+abs(low);
+            % calculate dB value of counts and add transfer function value at peak
+            % frequency to get ppSignal (dB re 1uPa)
+            P = 20*log10(ppCount);
+            peakLow = floor(peakFr(i));
+            fLow=find(f>=peakLow);
+            % add PtfN transfer function at peak frequency to P
+            tfPeak = detParam.xfrOffset(fLow(1));
+            ppSignal(i) = P+tfPeak;
+
+            % calculate TDOA for each detection
             i1 = max([1, ind(i) - detParam.maxdn]);
             i2 = min([length(xf), ind(i) + detParam.maxdn]);
 
@@ -78,8 +137,8 @@ while t2<=tend
             el = 180 - acosd(doa(3));
             az = atan2d(doa(2), doa(1));
 
-            tempTable = table(tdet(i), pks(i), [az, el], doa.', tdoa, xamp, ...
-                'VariableNames', {'TDet', 'DAmp', 'Ang', 'DOA', 'TDOA', 'XAmp'});
+            tempTable = table(tdet(i), pks(i), [az, el], doa.', tdoa, xamp, specClickTf(i,:), peakFr(i), ppSignal(i), ...
+                'VariableNames', {'TDet', 'DAmp', 'Ang', 'DOA', 'TDOA', 'XAmp', 'Spectra', 'PeakFr', 'ppRL'});
 
             %         detTable.('XAmp')(idet, :) = xamp;
             %         detTable.('TDOA')(idet, :) = tdoa;

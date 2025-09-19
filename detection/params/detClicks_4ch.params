@@ -17,3 +17,8 @@ detParam.maxdn = 100; % max TDOA (samples)
 detParam.xcRow = [2, 3, 4, 7, 8, 12]; % which rows of xcov to use for TDOA (actually should be column, not row)
 
 detParam.sigDuration = round(580e-6*detParam.fs); % expected signal duration (samples, must be even number) (taken from "Species-specific beaked whale echolocation signals")
+
+detParam.binWidth_Hz = 1000; % bin width for FFT, in Hz
+detParam.bpRanges = [20000 50000]; % range over which to take FFT of signal, in Hz
+detParam.buffer = 0.00025; % buffer (in seconds) for grabbing click data
+detParam.frameLengthUs = 2000; % default for FFT calculation, from Triton SPICE remora

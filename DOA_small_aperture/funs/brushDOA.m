@@ -1,4 +1,4 @@
-function [DET1out, DET2out] = brushDOA(DET1in, DET2in, varargin)
+function [DET1out, DET2out] = brushDOA(DET1in, DET2in, fin, varargin)
 % DOAin should be a table containing at least the following entries:
 %   DOA.('TDet') = time of detection in datenum format
 %   DOA.('Ang') = azimuth an delevation angles of each detection
@@ -12,7 +12,7 @@ if nargin == 2 % no parameter file specified
     else % if no default param file exists, generate one
         makeParamFile
     end
-elseif nargin == 3 % parameter file specified
+elseif nargin == 4 % parameter file specified
     loadParams(varargin{1})
 end
 
@@ -29,7 +29,7 @@ if isempty(figKey)
 end
 
 % set global data
-run_brushDOA(DET1in, DET2in, varargin);
+run_brushDOA(DET1in, DET2in, fin, varargin);
 
 qselect = input('\nEnter ''q'' to quit: ', 's');
 
@@ -40,11 +40,12 @@ DET2out = DET{2};
 
 end
 
-function run_brushDOA(DET1in, DET2in, varargin)
-global brushing DET DETprev
+function run_brushDOA(DET1in, DET2in, fin, varargin)
+global brushing DET DETprev f
 
 DET{1} = DET1in;
 DET{2} = DET2in;
+f = fin;
 
 DETprev = DET; % previous detection values (for undo function)
 
@@ -222,7 +223,7 @@ end
 %% Keypress Callback
 function keyPressCallback(source, eventdata)
 
-global brushing DET DETprev
+global brushing DET DETprev f
 
 key = eventdata.Key;
 
@@ -492,7 +493,57 @@ else % if input is letter, perform associated function
                 'xdata', DET{2}.('TDet'), ...
                 'ydata', DET{2}.('Ang')(:,1))
 
-    end
+        case 'y' % plot the mean spectra of selected clicks
+
+            persistent avgFig avgAx
+
+            if ~isempty(Ind{1})
+
+                spectra = DET{1}.('Spectra')(Ind{1},:);
+                meanSpec = mean(spectra);
+
+                if isempty(avgFig) || ~isvalid(avgFig)
+                    avgFig = figure('Name','Mean Spectra','NumberTitle','off');
+                    avgAx = axes('Parent', avgFig);
+                    hold(avgAx, 'on');
+                    xlabel(avgAx, 'Frequency (kHz)')
+                    ylabel(avgAx, 'Amplitude (dB re 1 uPa^2)')
+                    grid(avgAx, 'on')
+                else
+                    figure(avgFig); % bring to front
+                    cla(avgAx);
+                end
+              
+                plot(avgAx,f, meanSpec,'k','linewidth',3);
+                % ylim([110 200])
+                % xlim([f(1) f(end)])
+
+            end
+
+            % update AR2
+            if ~isempty(Ind{2})
+                spectra = DET{2}.('Spectra')(Ind{2},:);
+                meanSpec = mean(spectra);
+
+                if isempty(avgFig) || ~isvalid(avgFig)
+                    avgFig = figure('Name','Mean Spectra','NumberTitle','off');
+                    avgAx = axes('Parent', avgFig);
+                    hold(avgAx, 'on');
+                    xlabel(avgAx, 'Frequency (Hz)')
+                    ylabel(avgAx, 'Amplitude (dB re 1 uPa^2)')
+                    grid(avgAx, 'on')
+                else
+                    figure(avgFig); % bring to front
+                    cla(avgAx);
+                end
+              
+                plot(avgAx,f, meanSpec,'k','linewidth',3);
+                % ylim([110 200])
+                % xlim([f(1) f(end)])
+            end
+
+
+    end % end key input toggles
 end
 
 end

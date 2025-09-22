@@ -37,14 +37,6 @@ f = 0:((detParam.fs/2)/1000)/((N/2)):((detParam.fs/2)/1000);
 f = f(detParam.specRange);
 sub = 10*log10(detParam.fs/N);
 
-% detParam.fftSize = ceil(detParam.fs * detParam.frameLengthUs / 1E6);
-% detParam.fftWindow = hann(detParam.fftSize)';
-% buff = detParam.buffer*detParam.fs; % calculate the number of samples to buffer on either side of the peak
-% N = length(detParam.fftWindow);
-% f = 0:((detParam.fs/2)/1000)/((N/2)):((detParam.fs/2)/1000);
-% f = f(detParam.specRange);
-% sub = 10*log10(detParam.fs/N);
-
 detTable = table;
 
 idet = 1; % counter for number of detections
@@ -75,6 +67,9 @@ while t2<=tend
 
             cStart = ind(i)-buff; % start sample to grab
             cEnd = ind(i)+buff; % end sample to grab
+            if cEnd > size(xf,1) % catch in case the peak is right at the end of the data window
+                cEnd = size(xf,1);
+            end
 
             % click spectrum
             % pull out filtered click timeseries
@@ -164,3 +159,4 @@ close(wb)
 
 detTable.('Label') = num2str(zeros(size(detTable.('TDet'))));
 detTable.('color') = 2.*ones(size(detTable.('TDet')));
+detTable.('Species') = num2str(nan(size(detTable.('TDet'))));

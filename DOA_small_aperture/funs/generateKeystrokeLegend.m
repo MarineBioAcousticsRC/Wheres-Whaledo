@@ -7,8 +7,8 @@ end
 fig.Position = brushing.params.commandLegendPos;
 
 
-keystrokes = {'0', '1-8', 'd', 'z', 'x', 'r', 'a', 'u', 'y'};
-functs = {'remove label', 'label as #1-8', 'delete', 'zoom ON', 'zoom OFF', 'reset zoom', 'associate', 'undo', 'mean spectra'};
+keystrokes = {'0', '1-8', 'd', 'z', 'x', 'r', 'a', 'u', 'y','s'};
+functs = {'remove label', 'label as #1-8', 'delete', 'zoom ON', 'zoom OFF', 'reset zoom', 'associate', 'undo', 'mean spectra','label species'};
 
 horzLines = 1:numel(keystrokes);
 vertLines = [0, 2, length(horzLines) + 1];
@@ -22,7 +22,7 @@ for i = 1:length(vertLines)
     plot([vertLines(i),vertLines(i)], [1, length(horzLines) + 1], 'k')
 end
 for i = 1:length(horzLines)
-    plot([0, 9], [horzLines(i),horzLines(i)], 'k')
+    plot([0, 10], [horzLines(i),horzLines(i)], 'k')
 end
 for i = 1:length(keystrokes)
     text(xdata(1), ydata(i), keystrokes{i}, 'HorizontalAlignment', 'center', 'FontSize', 13)
@@ -35,7 +35,7 @@ ax = gca;
 ax.XTick = [];
 ax.YTick = [];
 
-xlim([0, 9]);
+xlim([0, 10]);
 ylim([1, length(horzLines) + 1])
 hold off
 

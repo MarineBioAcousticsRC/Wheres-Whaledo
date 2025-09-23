@@ -542,6 +542,65 @@ else % if input is letter, perform associated function
                 % xlim([f(1) f(end)])
             end
 
+        case 's' % label the species of each whale that you labeled
+
+            wnstruct = inputdlg('Enter whale number to give a species label (or ''a'' if all are one species):', 'Label whales (species)');
+            
+            if strcmp(wnstruct{1}, 'a') % process all whales
+
+                spcode = inputdlg('Enter species label (ex: Zc for Ziphius cavirostris)', 'Input label (species)');
+                label = spcode{1};
+
+                numwhales = max(str2num([unique(DET{1}.Label); unique(DET{2}.Label)]),[],'all');
+                DET{1}.Species = string(DET{1}.Species);
+                DET{2}.Species = string(DET{2}.Species);
+
+                for wn = 1:numwhales
+
+                    idx1 = find(DET{1}.Label==num2str(wn));
+                    idx2 = find(DET{2}.Label==num2str(wn));
+
+                    DET{1}.Species = string(DET{1}.Species);
+                    DET{2}.Species = string(DET{2}.Species);
+
+                    if ~isempty(idx1)
+                        for dt = 1:length(idx1)
+                            DET{1}.Species(idx1(dt)) = string(label);
+                        end
+                    end
+                    if ~isempty(idx2)
+                        for dt = 1:length(idx2)
+                            DET{2}.Species(idx2(dt)) = string(label);
+                        end
+                    end
+
+                end
+
+            else % process only specified whale
+                
+                wn = wnstruct{1};
+                idx1 = find(DET{1}.Label==wn);
+                idx2 = find(DET{2}.Label==wn);
+
+                spcode = inputdlg('Enter species label (ex: Zc for Ziphius cavirostris)', 'Input label (species)');
+                label = spcode{1};
+
+                DET{1}.Species = string(DET{1}.Species);
+                DET{2}.Species = string(DET{2}.Species);
+                
+                if ~isempty(idx1)
+                    for dt = 1:length(idx1)
+                        DET{1}.Species(idx1(dt)) = string(label);
+                    end
+                end
+                if ~isempty(idx2)
+                    for dt = 1:length(idx2)
+                        DET{2}.Species(idx2(dt)) = string(label);
+                    end
+                end
+
+            end 
+
 
     end % end key input toggles
 end

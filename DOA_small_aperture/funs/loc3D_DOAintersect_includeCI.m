@@ -48,6 +48,8 @@ for wn = 1:length(colorNums) % iterate through each whale number
         tdoa1 = DET{1}.TDOA(I1, :);
         tdoa2 = DET{2}.TDOA(I2, :);
 
+        sp = unique(string(DET{1}.Species(I1,:)));
+
         % initialize variables as nan:
         w = nan(length(t1), 3);
         werr = nan(length(t1), 1);
@@ -187,6 +189,7 @@ for wn = 1:length(colorNums) % iterate through each whale number
         whale{wn}.CIx = CIx;
         whale{wn}.CIy = CIy;
         whale{wn}.CIz = CIz;
+        whale{wn}.Species = repmat(sp,length(CIz),1);
 
         if LOC_DOA.plotFlag
             scatter3(whale{wn}.wloc(:, 1), whale{wn}.wloc(:, 2), whale{wn}.wloc(:, 3), ...

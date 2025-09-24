@@ -67,6 +67,9 @@ while t2<=tend
 
             cStart = ind(i)-buff; % start sample to grab
             cEnd = ind(i)+buff; % end sample to grab
+            if cStart <= 0 % if we went to a sample before 1
+                cStart = 1;
+            end
             if cEnd > size(xf,1) % catch in case the peak is right at the end of the data window
                 cEnd = size(xf,1);
             end

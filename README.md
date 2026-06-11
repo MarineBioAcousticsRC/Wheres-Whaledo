@@ -5,7 +5,7 @@ A TDOA/DOA localization software package created to track echolocating marine ma
 This software package has been used to process long-term acoustic datasets of echolocation clicks from goose-beaked whales, false killer whales, and short-finned pilot whales, but settings can be modified to process impulsive signals produced by other odontocete species.
 
 ## Documentation
-[User Manual](manual/WheresWhaledo_User_Manual.pdf)
+[User Manual](manual/WheresWhaledo_UserManual.pdf)
 
 ## Releases
 

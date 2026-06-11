@@ -1,6 +1,8 @@
 # Where'sWhaledo v2.0
 
-Where'sWhaledo is a MATLAB-based software package for 3D tracking of odontocete echolocation clicks.
+A TDOA/DOA localization software package created to track echolocating marine mammals. This software was created by Dr. Eric Snyder (@ericSnyderSIO) and is currently optimized for use with small-aperture tetrahedral hydrophone arrays. v2.0 was created by Lauren Baggett (@laurenbaggett).
+
+This software package has been used to process long-term acoustic datasets of echolocation clicks from goose-beaked whales, false killer whales, and short-finned pilot whales, but settings can be modified to process impulsive signals produced by other odontocete species.
 
 ## Documentation
 [User Manual](manual/WheresWhaledo_User_Manual.pdf)

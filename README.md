@@ -3,7 +3,7 @@
 Where'sWhaledo is a MATLAB-based software package for 3D tracking of odontocete echolocation clicks.
 
 ## Documentation
-[User Manual] (manual/WheresWhaledo_User_Manual.pdf)
+[User Manual](manual/WheresWhaledo_User_Manual.pdf)
 
 ## Releases
 

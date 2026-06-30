@@ -111,6 +111,10 @@ for j = 1:height(enc)
         h.createRequiredElements(effort)
         effort.setStart(h.timestamp(dbSerialDateToISO8601(enc.startSnipped(j))));
         effort.setEnd(h.timestamp(dbSerialDateToISO8601(enc.endSnipped(j))));
+        effort.setTimeReference('relative');
+        effort.setDimension(3);
+        ltype = effort.getLocalizationType();
+        ltype.add('Track');
         % m.marshal(effort)
 
         % coordinate reference
@@ -144,6 +148,7 @@ for j = 1:height(enc)
         for wn = 1:numel(whale)
 
             track = LocalizationType();
+            h.createElement(track,'TimeStamp')
             h.createElement(track,'Track')
             h.createElement(track,'SpeciesId')
             t = track.getTrack();
@@ -152,6 +157,9 @@ for j = 1:height(enc)
             cart = t.getCartesian();
             h.createElement(cart,'Coordinates')
             h.createElement(cart,'CoordinateError')
+
+            % set the first timestamp
+            track.setTimeStamp(h.timestamp(dbSerialDateToISO8601(whale{wn}.TDet(1))));
 
             % set species id
             spc = q.QueryTethys(char("lib:completename2tsn(""" + whale{wn}.Species(1) + """)")); % get the ITIS species code

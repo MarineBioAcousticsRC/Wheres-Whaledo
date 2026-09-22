@@ -89,6 +89,20 @@ switch mode
         pbaspect(S.ax,'auto');
 
         % --- plot whales into whale group ---
+        % color scheme follows Brush DOA's current toggle (tracked on
+        % brushing.colorMode by ww_brushDOA_setColorMode.m), even though
+        % whale{wn} is always grouped/associated by whale number
+        % regardless of that toggle (see ww_loc3D_DOAintersect_includeCI.m)
+        colorMode = "Whale number";
+        if isfield(brushing,'colorMode') && ~isempty(brushing.colorMode)
+            colorMode = brushing.colorMode;
+        end
+        if colorMode == "Species label"
+            plotColorMat = ww_get_species_colorMat();
+        else
+            plotColorMat = ww_get_whale_colorMat();
+        end
+
         for wn = 1:numel(whale)
             % skip whales with no cross-array localization yet (empty table, no wloc)
             if isempty(whale{wn}) || ~istable(whale{wn}) || ...
@@ -96,8 +110,13 @@ switch mode
                 continue
             end
             wloc = whale{wn}.wloc;
+            if colorMode == "Species label"
+                cidx = ww_get_species_color_index(whale{wn}.Species(1));
+            else
+                cidx = whale{wn}.color(1);
+            end
             h = scatter3(S.ax, wloc(:,1), wloc(:,2), wloc(:,3)+brushing.h0(3), ...
-                24, brushing.params.colorMat(whale{wn}.color(1),:), 'filled');
+                24, plotColorMat(cidx,:), 'filled');
             h.Parent = S.hWhaleGroup;
         end
 

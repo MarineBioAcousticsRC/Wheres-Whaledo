@@ -22,13 +22,21 @@ ts = tinv([alpha/2, 1-alpha/2], 12-1); % Student's T distribution
 % impossible (whale above the surface) and get reprojected below.
 zSurface = abs(brushing.h0(3));
 
-colorNums = unique([DET{1}.color; DET{2}.color]); % find all unique labels
-colorNums(colorNums==2) = []; % remove unlabeled points
+% Group/associate detections across the two arrays by whale-number
+% identity (Label), never by color: color is a display-only field that
+% ww_brushDOA_setColorMode.m overwrites to reflect species groupings
+% when toggled to "Species label", which would otherwise make this
+% cross-correlate every detection of a given species together as if it
+% were one whale, regardless of which individual whale it came from.
+wn1 = str2double(string(DET{1}.Label));
+wn2 = str2double(string(DET{2}.Label));
+whaleNums = unique([wn1; wn2]);
+whaleNums(isnan(whaleNums) | whaleNums==0) = []; % remove unlabeled (0) and unparseable labels
 
-for wn = 1:length(colorNums) % iterate through each whale number
+for wn = 1:length(whaleNums) % iterate through each whale number
     whale{wn} = table;
-    I1 = find(DET{1}.color==colorNums(wn)); % indices on array 1 labeled as whale wn
-    I2 = find(DET{2}.color==colorNums(wn)); % indices on array 2 labeled as whale wn
+    I1 = find(wn1==whaleNums(wn)); % indices on array 1 labeled as whale wn
+    I2 = find(wn2==whaleNums(wn)); % indices on array 2 labeled as whale wn
     
     if ~isempty(I1) && ~isempty(I2) % make sure there are detections on both arrays with this label
         t1 = DET{1}.TDet(I1); % times of detections on array 1
@@ -189,7 +197,7 @@ for wn = 1:length(colorNums) % iterate through each whale number
             wSpecies = string(cats(ord));
         end
         whale{wn}.Species = repmat(wSpecies, length(CIz),1);
-        whale{wn}.color = repmat(colorNums(wn), length(CIz),1); % colorMat row for this whale
+        whale{wn}.color = repmat(whaleNums(wn)+2, length(CIz),1); % whale-number colorMat row (ww_get_whale_colorMat.m), independent of DET{}.color's current display mode
 
     end
 end

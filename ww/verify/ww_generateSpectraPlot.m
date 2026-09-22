@@ -1,5 +1,5 @@
 function ww_generateSpectraPlot(mode, DET, f, Ind)
-% ww_generateSpectraPlot(mode, DET, f, brushing, Ind)
+% ww_generateSpectraPlot(mode, DET, f, Ind)
 %
 % Creates or updates a "Spectra Summary" figure:
 %   mode = 'init'     : create/validate figure and axes; does not plot data
@@ -9,27 +9,20 @@ function ww_generateSpectraPlot(mode, DET, f, Ind)
 % Inputs:
 %   DET: 1x2 cell array of tables, each with .Spectra and .Species
 %   f: frequency vector (1xF)
-%   brushing: struct with brushing.params.colorMat (Nx3)
 %   Ind: (only for mode='selected') cell Ind{1}, Ind{2} indices
 %
 % Notes:
 %   - Does NOT modify DET.
 %   - Stores state using setappdata(fig,'spectraState',S) like your legend function.
-%   - Maintains a stable species->colormap row mapping across updates via S.sp2cidx.
+%   - Always uses the fixed brushing.params palette (ww_get_species_colorMat.m),
+%     regardless of whatever palette Brush DOA's "Whale number" mode has
+%     currently loaded into brushing.params.colorMat. ww_get_species_color_index.m
+%     provides a stable species->color mapping shared with Brush DOA/the
+%     legend when they're toggled to "Species label", so colors match there too.
 
-    global PARAMS
+    global brushing
 
-    % ---- load the correct colormap ----
-    filename = PARAMS.path.repo + "\ww\verify\brushing_colors\brushing.params";
-    tmp = struct();
-    fid = fopen(filename,'r');
-    while ~feof(fid)
-        tline = fgets(fid);
-        tline = strrep(tline, 'brushing.params.', 'tmp.');
-        eval(tline);
-    end
-    fclose(fid);
-    colorMat = tmp.colorMat;
+    colorMat = ww_get_species_colorMat();
 
     % -------- find or create figure --------
     fig = findall(0, 'Type', 'figure', 'Name', 'Spectra Summary');
@@ -67,9 +60,6 @@ function ww_generateSpectraPlot(mode, DET, f, Ind)
 
         % Species lines map: speciesName -> line handle
         S.spLineMap = containers.Map('KeyType','char','ValueType','any');
-
-        % Stable species->colormap row index map (stored in state)
-        S.sp2cidx = containers.Map('KeyType','char','ValueType','double');
 
     else
         % update frequency vector on existing selected lines if needed
@@ -121,7 +111,7 @@ end
 % ======================================================================
 function S = local_updateSpeciesMeans(fig, S, DET, f, colorMat)
 % Compute mean spectrum per species across both arrays, plot/update one line per species.
-% Uses a stable species->colormap row index mapping stored in S.sp2cidx.
+% Uses the shared species->color mapping from ww_get_species_color_index.m.
 
     % gather spectra+species across arrays
     allSp = strings(0,1);
@@ -143,7 +133,9 @@ function S = local_updateSpeciesMeans(fig, S, DET, f, colorMat)
 
         sp = string(DET{arr}.Species(:));
         bad = ismissing(sp) | (strlength(sp)==0);
-        sp(bad) = "Unlabeled";
+        sp(bad) = "NaN"; % same unlabeled sentinel as ww_brushDOA_setColorMode.m,
+                          % so these rows get the shared reserved gray, not a
+                          % phantom "species" with no Brush DOA/legend counterpart
 
         % if any rows have empty spectra (NaNs) still fine for mean
         if numel(sp) ~= size(Sp,1)
@@ -161,25 +153,6 @@ function S = local_updateSpeciesMeans(fig, S, DET, f, colorMat)
 
     % unique species present now
     uSp = unique(allSp);
-
-    % ensure stable mapping for any new species
-    nColors = size(colorMat,1);
-    next = 3;
-    if S.sp2cidx.Count > 0
-        next = max(cell2mat(values(S.sp2cidx))) + 1;
-    end
-
-    for i = 1:numel(uSp)
-        key = char(uSp(i));
-        if ~isKey(S.sp2cidx, key)
-            % wrap through rows 3:end if we run out
-            if next > nColors
-                next = 3 + mod(next-3, max(1, nColors-2));
-            end
-            S.sp2cidx(key) = next;
-            next = next + 1;
-        end
-    end
 
     % delete species lines that no longer exist
     existing = S.spLineMap.keys;
@@ -200,7 +173,7 @@ function S = local_updateSpeciesMeans(fig, S, DET, f, colorMat)
         y = local_normalizeSpectra(y); % renormalize the mean curve itself to [0,1]
 
         k = char(nm);
-        cidx = S.sp2cidx(k);
+        cidx = ww_get_species_color_index(nm); % shared with Brush DOA coloring
         rgb = colorMat(cidx,:);
 
         if isKey(S.spLineMap, k) && isgraphics(S.spLineMap(k))

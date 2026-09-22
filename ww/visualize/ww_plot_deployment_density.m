@@ -37,6 +37,12 @@ for j = 1:numel(df)
 
     load(fullfile(thisEnc.folder,thisEnc.name))
 
+    % remove empty-table entries (whales with no cross-array
+    % localization, e.g. ww_loc3D_DOAintersect_includeCI.m leaves these
+    % as a bare table with no variables) so indexing into Species/TDet/
+    % etc. below doesn't error
+    whale = whale(~cellfun(@isempty, whale));
+
     for wn = 1:numel(whale)
 
         % species key

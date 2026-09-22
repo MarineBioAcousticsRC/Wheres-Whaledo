@@ -26,6 +26,16 @@ if strcmp(HANDLES.ui.viz.sepSp.Value,'Separate by species') % if we need to sepa
             load(fullfile(thisEnc.folder,thisEnc.name));
         end
 
+        if ~exist('whale','var')
+            continue
+        end
+
+        % remove empty-table entries (whales with no cross-array
+        % localization, e.g. ww_loc3D_DOAintersect_includeCI.m leaves
+        % these as a bare table with no variables) so indexing into
+        % Species/wlocSmooth/etc. below doesn't error
+        whale = whale(~cellfun(@isempty, whale));
+
         for wn = 1:numel(whale) % for each whale
 
             key = whale{wn}.Species(1); % grab latin species name for this whale
@@ -73,13 +83,12 @@ if strcmp(HANDLES.ui.viz.sepSp.Value,'Separate by species') % if we need to sepa
         end
     end
 
-     plot(h1(1),h1(2),'s','markeredgecolor','white','markerfacecolor','black','markersize',6);
-     plot(h2(1),h2(2),'s','markeredgecolor','white','markerfacecolor','black','markersize',6);
-
      % set axis limits
      figVals = values(figs);
      for f = 1:numel(figVals)
          figure(figVals{f})
+         plot(h1(1),h1(2),'s','markeredgecolor','white','markerfacecolor','black','markersize',6);
+         plot(h2(1),h2(2),'s','markeredgecolor','white','markerfacecolor','black','markersize',6);
          rangeMax = max(abs(ranges),[],'all');
          rangeLims = [ceil(rangeMax/1000)*-1000 ceil(rangeMax/1000)*1000]; % round to nearest kilometer
          xlim(rangeLims)
@@ -105,6 +114,16 @@ elseif strcmp(HANDLES.ui.viz.sepSp.Value,'Combine all species') % otherwise put 
         if ~isempty(thisEnc)
             load(fullfile(thisEnc.folder,thisEnc.name));
         end
+
+        if ~exist('whale','var')
+            continue
+        end
+
+        % remove empty-table entries (whales with no cross-array
+        % localization, e.g. ww_loc3D_DOAintersect_includeCI.m leaves
+        % these as a bare table with no variables) so indexing into
+        % wlocSmooth/etc. below doesn't error
+        whale = whale(~cellfun(@isempty, whale));
 
         for wn = 1:numel(whale) % for each whale
 

@@ -498,7 +498,8 @@ refreshColumn3();
             unqWhales = unqWhales(str2double(unqWhales) > 0); % find whale labels
             for wn = 1:numel(unqWhales)
                 thisWhale = find(labelStr==unqWhales(wn));
-                labelMatch = HANDLES.ui.enc.whaleSpecies(wn).Value; % find the species label
+                whaleNum = str2double(unqWhales(wn)); % actual whale number, not its position in unqWhales
+                labelMatch = HANDLES.ui.enc.whaleSpecies(whaleNum).Value; % find the species label
                 latinMatch = find(strcmp({HANDLES.ui.enc.col3State.lbl.Text}, labelMatch), 1); % find index of matching latin name
                 latinValue = string(HANDLES.ui.enc.col3State.edt(latinMatch).Value); % grab latin input
                 DETout{j}.Species(thisWhale) = latinValue; % assign latin input in DET struct

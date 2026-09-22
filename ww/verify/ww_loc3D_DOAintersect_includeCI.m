@@ -16,6 +16,12 @@ global PARAMS HANDLES DET
 alpha = 1-.95; % alpha for 95% CI
 ts = tinv([alpha/2, 1-alpha/2], 12-1); % Student's T distribution
 
+% w(:,3) is in the same h0-relative frame as h1(3)/h2(3); the sea
+% surface (absolute depth 0) sits at w(:,3) == abs(brushing.h0(3)) in
+% that frame. Estimates with w(:,3) above this are physically
+% impossible (whale above the surface) and get reprojected below.
+zSurface = abs(brushing.h0(3));
+
 colorNums = unique([DET{1}.color; DET{2}.color]); % find all unique labels
 colorNums(colorNums==2) = []; % remove unlabeled points
 
@@ -56,11 +62,8 @@ for wn = 1:length(colorNums) % iterate through each whale number
 
             if tdiff<seconds(3)
                 i = i+1; % iterate counter of localized detections
-                D = [doa1(i1, :); -doa2(i2, :)];
-                R = D.'\(brushing.h2-brushing.h1).'; % range of whale to each instrument
 
-                w1 = R(1).*doa1(i1, :) + brushing.h1;
-                w2 = R(2).*doa2(i2, :) + brushing.h2;
+                [w1, w2] = closest_point_underwater(doa1(i1,:), doa2(i2,:), brushing.h1, brushing.h2, zSurface);
 
                 w(i, :) = mean([w1; w2]);
 
@@ -85,11 +88,7 @@ for wn = 1:length(colorNums) % iterate through each whale number
                     s2 = brushing.H{2}\(td2.'.*brushing.c{1});
                     s2 = s2.'./sqrt(sum(s2.^2));
 
-                    D = [s1; -s2];
-                    
-                    R = D.'\(brushing.h2-brushing.h1).';
-                    w1 = R(1).*s1 + brushing.h1;
-                    w2 = R(2).*s2 + brushing.h2;
+                    [w1, w2] = closest_point_underwater(s1, s2, brushing.h1, brushing.h2, zSurface);
 
                     wjk(ijk, :) = mean([w1; w2]);
                 end
@@ -112,11 +111,7 @@ for wn = 1:length(colorNums) % iterate through each whale number
                     s2 = H2temp\(td2.'.*brushing.c{2});
                     s2 = s2.'./sqrt(sum(s2.^2));
 
-                    D = [s1; -s2];
-                    
-                    R = D.'\(brushing.h2-brushing.h1).';
-                    w1 = R(1).*s1 + brushing.h1;
-                    w2 = R(2).*s2 + brushing.h2;
+                    [w1, w2] = closest_point_underwater(s1, s2, brushing.h1, brushing.h2, zSurface);
 
                     wjk(ijk, :) = mean([w1; w2]);
                 end
@@ -165,20 +160,94 @@ for wn = 1:length(colorNums) % iterate through each whale number
         z = w(:, 3) - abs(brushing.h0(3));
         whale{wn}.LatLonDepth = [lat, lon, z];
         whale{wn}.werr = werr;
-        whale{wn}.TDOA(:, 1:6) = DET{1}.TDOA(t1_used_idx, :); % only simultaneous TDOAs array 1
-        whale{wn}.TDOA(:, 7:12) = DET{2}.TDOA(t2_used_idx, :); % only simultaneous TDOAs array 2
-        whale{wn}.DAmp(:, 1) = DET{1}.DAmp(t1_used_idx); % only simultaneous TDOAs array 1
-        whale{wn}.DAmp(:, 2) = DET{2}.DAmp(t2_used_idx, :); % only simultaneous TDOAs array 2
+        whale{wn}.TDOA(:, 1:6) = DET{1}.TDOA(I1_used, :); % only simultaneous TDOAs array 1
+        whale{wn}.TDOA(:, 7:12) = DET{2}.TDOA(I2_used, :); % only simultaneous TDOAs array 2
+        whale{wn}.DAmp(:, 1) = DET{1}.DAmp(I1_used); % only simultaneous TDOAs array 1
+        whale{wn}.DAmp(:, 2) = DET{2}.DAmp(I2_used, :); % only simultaneous TDOAs array 2
         whale{wn}.I1 = I1_used;
         whale{wn}.I2 = I2_used;
         whale{wn}.sig_w = sig_w;
         whale{wn}.CIx = CIx;
         whale{wn}.CIy = CIy;
         whale{wn}.CIz = CIz;
-        whale{wn}.Species = repmat(DET{1}.Species(t1_used_idx(1)), length(CIz),1);
+        % use the modal non-"NaN" species across this whale's used
+        % detections on both arrays, rather than just the first row on
+        % array 1 -- more robust to any one row having a stale/mismatched
+        % Species value (Label/color can desync; color is ground truth,
+        % Species assignment keys off Label text, so a handful of rows
+        % can end up without a species even though the whale as a whole
+        % clearly has one)
+        spCandidates = [DET{1}.Species(I1_used); DET{2}.Species(I2_used)];
+        spCandidates = spCandidates(~ismissing(spCandidates) & spCandidates ~= "NaN");
+        if isempty(spCandidates)
+            wSpecies = "NaN";
+        else
+            c = categorical(spCandidates);
+            [cats, ~, ic] = unique(c);
+            counts = accumarray(ic, 1);
+            [~, ord] = max(counts);
+            wSpecies = string(cats(ord));
+        end
+        whale{wn}.Species = repmat(wSpecies, length(CIz),1);
         whale{wn}.color = repmat(colorNums(wn), length(CIz),1); % colorMat row for this whale
 
     end
 end
 hold off
+
+end
+
+% ======================================================================
+function [w1, w2] = closest_point_underwater(s1, s2, h1, h2, zSurface)
+% closest_point_underwater
+%
+% Finds the closest point of approach between two DOA rays (ray 1: from
+% h1 in direction s1; ray 2: from h2 in direction s2), ruling out either
+% ray's own point going above the surface.
+%
+% w1(3) depends only on R1 (ray 1's range), and w2(3) only on R2, so
+% this is a simple box constraint per ray, not a joint one: R1max/R2max
+% is the range along each ray at which it crosses the surface (only
+% relevant if the ray points toward the surface, i.e. a positive
+% z-direction cosine in this h0-relative frame).
+%
+% If neither ray's own unconstrained point exceeds its bound, the plain
+% closest point of approach is returned unchanged. If only one does,
+% that ray is clamped to the surface and the other ray's range is
+% re-solved to minimize the remaining gap (so the result does not, in
+% general, end up exactly at the surface -- only the clamped ray's
+% point does). Only when both rays independently would go above the
+% surface are both clamped.
+
+D = [s1; -s2];
+A = D.';
+b = (h2-h1).';
+R = A\b; % closest point of approach between the two rays, unconstrained
+
+R1max = inf;
+if s1(3) > 0
+    R1max = (zSurface - h1(3)) / s1(3);
+end
+R2max = inf;
+if s2(3) > 0
+    R2max = (zSurface - h2(3)) / s2(3);
+end
+
+viol1 = R(1) > R1max;
+viol2 = R(2) > R2max;
+
+if viol1 && viol2
+    R = [R1max; R2max];
+elseif viol1
+    R(1) = R1max;
+    R(2) = A(:,2)\(b - A(:,1)*R(1));
+elseif viol2
+    R(2) = R2max;
+    R(1) = A(:,1)\(b - A(:,2)*R(2));
+end
+
+w1 = R(1).*s1 + h1;
+w2 = R(2).*s2 + h2;
+
+end
 

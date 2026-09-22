@@ -41,7 +41,10 @@ for j = 1:numel(df)
 
         % species key
         key = whale{wn}.Species(1);
-       
+        if ismissing(key) % containers.Map keys can't be a missing string
+            key = "NaN";
+        end
+
         % interpolate to 1-second spacing
         tstart = whale{wn}.TDet(1);
         tend   = whale{wn}.TDet(end);

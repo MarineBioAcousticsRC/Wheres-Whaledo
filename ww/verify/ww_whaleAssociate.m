@@ -99,7 +99,7 @@ while tstart<=TDetL(end) % compute while tstart is less than last labeled detect
         % if detection on other array fell within one hanning window if
         % expected detection time, label it as whaleNum
         if tdif<seconds(WAparam.tCloseEnough)
-            DETout{otherInstNum}.Label(I) = num2str(whaleNum);
+            DETout{otherInstNum}.Label = ww_pad_label_assign(DETout{otherInstNum}.Label, I, whaleNum);
             DETout{otherInstNum}.color(I) = whaleNum + 2;
         end
     end

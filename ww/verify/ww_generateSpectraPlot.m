@@ -56,8 +56,9 @@ function ww_generateSpectraPlot(mode, DET, f, Ind)
         hold(S.ax,'on');
         grid(S.ax,'on');
         xlabel(S.ax,'Frequency (kHz)');
-        ylabel(S.ax,'Amplitude (dB re 1 \muPa^2)');
-        title(S.ax,'Mean Spectra');
+        ylabel(S.ax,'Normalized Amplitude');
+        ylim(S.ax,[0 1]);
+        title(S.ax,'Mean Normalized Spectra');
 
         % Lines for selected spectra (always exist; start as NaN)
         S.selLine = gobjects(2,1);
@@ -106,6 +107,10 @@ function ww_generateSpectraPlot(mode, DET, f, Ind)
     % keep selected lines on top
     if isgraphics(S.selLine(1)); uistack(S.selLine(1),'top'); end
     if isgraphics(S.selLine(2)); uistack(S.selLine(2),'top'); end
+
+    % enforce normalized y-axis every update (not just on figure creation),
+    % in case this figure survived from a previous track with a different scale
+    ylim(S.ax,[0 1]);
 
     % -------- save state --------
     S.mode = mode;
@@ -192,6 +197,7 @@ function S = local_updateSpeciesMeans(fig, S, DET, f, colorMat)
         nm = uSp(i);
         idx = (allSp == nm);
         y = mean(allSpec(idx,:), 1);
+        y = local_normalizeSpectra(y); % renormalize the mean curve itself to [0,1]
 
         k = char(nm);
         cidx = S.sp2cidx(k);
@@ -207,7 +213,6 @@ function S = local_updateSpeciesMeans(fig, S, DET, f, colorMat)
         end
     end
 
-    figure(fig); % bring to front
     drawnow limitrate
 end
 
@@ -220,7 +225,7 @@ function S = local_updateSelectedMeans(S, DET, f, Ind)
     if ~isempty(Ind{1}) && ~isempty(DET{1}) && istable(DET{1}) && ismember('Spectra', DET{1}.Properties.VariableNames)
         Sp1 = local_getSpectraNumeric(DET{1});
         if ~isempty(Sp1) && max(Ind{1}) <= size(Sp1,1)
-            y1 = mean(Sp1(Ind{1},:), 1);
+            y1 = local_normalizeSpectra(mean(Sp1(Ind{1},:), 1)); % renormalize the mean curve itself to [0,1]
         end
     end
     if isgraphics(S.selLine(1))
@@ -232,7 +237,7 @@ function S = local_updateSelectedMeans(S, DET, f, Ind)
     if ~isempty(Ind{2}) && ~isempty(DET{2}) && istable(DET{2}) && ismember('Spectra', DET{2}.Properties.VariableNames)
         Sp2 = local_getSpectraNumeric(DET{2});
         if ~isempty(Sp2) && max(Ind{2}) <= size(Sp2,1)
-            y2 = mean(Sp2(Ind{2},:), 1);
+            y2 = local_normalizeSpectra(mean(Sp2(Ind{2},:), 1)); % renormalize the mean curve itself to [0,1]
         end
     end
     if isgraphics(S.selLine(2))
@@ -240,6 +245,22 @@ function S = local_updateSelectedMeans(S, DET, f, Ind)
     end
 
     drawnow limitrate
+end
+
+% ======================================================================
+function Sp = local_normalizeSpectra(Sp)
+% Min-max normalizes each detection's spectrum (row) to the range [0, 1],
+% so mean/species curves reflect spectral shape rather than absolute
+% received level.
+
+    if isempty(Sp)
+        return
+    end
+    lo = min(Sp, [], 2, 'omitnan');
+    hi = max(Sp, [], 2, 'omitnan');
+    rng = hi - lo;
+    rng(rng==0) = 1; % avoid divide-by-zero for a flat/constant row
+    Sp = (Sp - lo) ./ rng;
 end
 
 % ======================================================================

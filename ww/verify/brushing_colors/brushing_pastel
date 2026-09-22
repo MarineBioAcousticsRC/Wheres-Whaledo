@@ -22,6 +22,9 @@ brushing.params.colorMat(16, :) = [0.498039, 0.498039, 0.498039]; % medium gray
 brushing.params.colorMat(17, :) = [0.800000, 0.200000, 0.600000]; % magenta-purple
 brushing.params.colorMat(18, :) = [0.000000, 0.750000, 0.750000]; % cyan
 brushing.params.colorMat(19, :) = [0.800000, 0.400000, 0.000000]; % burnt orange
+brushing.params.colorMat(20, :) = [0.870588, 0.176471, 0.478431]; % Whale 18 (raspberry)
+brushing.params.colorMat(21, :) = [0.415686, 0.352941, 0.803922]; % Whale 19 (slate blue)
+brushing.params.colorMat(22, :) = [0.607843, 0.588235, 0.098039]; % Whale 20 (olive)
 
 
 brushing.params.colorLegendPos = [20 100 200 921]; % Label Color Legend Position 

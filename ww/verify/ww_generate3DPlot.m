@@ -90,9 +90,14 @@ switch mode
 
         % --- plot whales into whale group ---
         for wn = 1:numel(whale)
+            % skip whales with no cross-array localization yet (empty table, no wloc)
+            if isempty(whale{wn}) || ~istable(whale{wn}) || ...
+                    ~ismember('wloc', whale{wn}.Properties.VariableNames) || isempty(whale{wn}.wloc)
+                continue
+            end
             wloc = whale{wn}.wloc;
             h = scatter3(S.ax, wloc(:,1), wloc(:,2), wloc(:,3)+brushing.h0(3), ...
-                24, brushing.params.colorMat(wn+2,:), 'filled');
+                24, brushing.params.colorMat(whale{wn}.color(1),:), 'filled');
             h.Parent = S.hWhaleGroup;
         end
 

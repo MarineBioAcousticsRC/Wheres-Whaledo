@@ -29,6 +29,9 @@ if strcmp(HANDLES.ui.viz.sepSp.Value,'Separate by species') % if we need to sepa
         for wn = 1:numel(whale) % for each whale
 
             key = whale{wn}.Species(1); % grab latin species name for this whale
+            if ismissing(key) % containers.Map keys can't be a missing string
+                key = "NaN";
+            end
 
             % make the figure for this species if it doesn't exist already
             if ~isKey(figs,key)

@@ -8,8 +8,4 @@ function XH = ww_build_xwav_dir(xwavPath);
 
 XH = dir(xwavPath + "\**\*.x.wav");
 
-
-
-
-
 end

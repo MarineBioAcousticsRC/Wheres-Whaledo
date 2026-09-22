@@ -176,6 +176,7 @@ for wn = 1:length(colorNums) % iterate through each whale number
         whale{wn}.CIy = CIy;
         whale{wn}.CIz = CIz;
         whale{wn}.Species = repmat(DET{1}.Species(t1_used_idx(1)), length(CIz),1);
+        whale{wn}.color = repmat(colorNums(wn), length(CIz),1); % colorMat row for this whale
 
     end
 end

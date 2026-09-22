@@ -118,16 +118,17 @@ HANDLES.ui.enc.infoText.Layout.Row = 2;
 p2 = uipanel(cols,'Title',"Assign species labels to whales:");
 p2.Layout.Column = 2;
 
-% ---- add content inside column 2 (9 text inputs) ----
-col2 = uigridlayout(p2,[15 2]);  % header + 9 rows, 2 columns (label | input)
+% ---- add content inside column 2 (20 text inputs) ----
+col2 = uigridlayout(p2,[20 2]);  % header + 20 rows, 2 columns (label | input)
 col2.Padding = [10 10 10 10];
 col2.RowSpacing = 10;
 col2.ColumnSpacing = 12;
 col2.ColumnWidth = {80,'1x'};
-col2.RowHeight = [repmat({23},1,15)];  % title row + 9 input rows
+col2.RowHeight = [repmat({23},1,20)];  % title row + 20 input rows
+col2.Scrollable = 'on';  % 20 rows no longer fit the panel height; allow scrolling instead of clipping
 
-% create 9 label+editfield rows in a loop
-for k = 1:15
+% create 20 label+editfield rows in a loop
+for k = 1:20
     uilabel(col2, ...
         'Text',sprintf("Whale %d:",k), ...
         'HorizontalAlignment','right', ...
@@ -492,10 +493,11 @@ refreshColumn3();
         % assign species labels (latin) to detections
         for j = 1:numel(DET)
             DETout{j} = DET{j}; % save in an output struct
-            unqWhales = str2num(unique(DETout{j}.Label));
-            unqWhales = num2str(unqWhales(unqWhales>0)); % find whale labels
-            for wn = 1:length(unqWhales)
-                thisWhale = find(DETout{j}.Label==unqWhales(wn));
+            labelStr = strtrim(string(DETout{j}.Label)); % robust to any label width
+            unqWhales = unique(labelStr);
+            unqWhales = unqWhales(str2double(unqWhales) > 0); % find whale labels
+            for wn = 1:numel(unqWhales)
+                thisWhale = find(labelStr==unqWhales(wn));
                 labelMatch = HANDLES.ui.enc.whaleSpecies(wn).Value; % find the species label
                 latinMatch = find(strcmp({HANDLES.ui.enc.col3State.lbl.Text}, labelMatch), 1); % find index of matching latin name
                 latinValue = string(HANDLES.ui.enc.col3State.edt(latinMatch).Value); % grab latin input

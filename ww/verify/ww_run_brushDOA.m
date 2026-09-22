@@ -12,7 +12,8 @@ figCol = findall(0, 'Type', 'figure', 'name', 'Legend of Label Colors');
 if isempty(figCol)
     labels = ["Whale 1", "Whale 2", "Whale 3", "Whale 4", "Whale 5", ...
         "Whale 6", "Whale 7", "Whale 8", "Whale 9", "Whale 10", ...
-        "Whale 11", "Whale 12", "Whale 13", "Whale 14", "Whale 15"];
+        "Whale 11", "Whale 12", "Whale 13", "Whale 14", "Whale 15", ...
+        "Whale 16", "Whale 17", "Whale 18", "Whale 19", "Whale 20"];
     ww_generateColorSchemeLegend(brushing,"Whale number",labels) % if legend doesn't exist, generate it
 end
 
@@ -43,6 +44,11 @@ if isfield(HANDLES,'ui') && isfield(HANDLES.ui,'enc') && ...
     HANDLES.ui.enc.refreshColumn3Fcn();
     drawnow limitrate
 end
+
+% recognize any whale-number labels already present in the loaded file
+% (not just ones assigned during this session) and enable their species
+% input fields accordingly
+ww_refresh_encounter_options();
 
 end
 
@@ -260,14 +266,14 @@ end
 
 numkey = str2double(key); % convert keyboard input to a number (returns NaN if value is not a number)
 if ~(isempty(numkey)||isnan(numkey)) % if input is number, assign as whale number:
-    if numkey>8||numkey<0
-        errBox = msgbox('error: invalid whale number\nSelect a number 1 thorugh 8', 'Error');
+    if numkey>9||numkey<0
+        errBox = msgbox('error: invalid whale number\nSelect a number 1 thorugh 9', 'Error');
     else
         DETprev = DET; % set DETprev as current state for undo
 
         % update AR1
         if ~isempty(Ind{1})
-            DET{1}.('Label')(Ind{1}) = key;
+            DET{1}.('Label') = ww_pad_label_assign(DET{1}.('Label'), Ind{1}, key);
             DET{1}.('color')(Ind{1}) = (numkey + 2);
             for isp = 4:6
                 set(source.Children(isp).Children, 'cdata', brushing.params.colorMat(DET{1}.('color'), :))
@@ -276,7 +282,7 @@ if ~(isempty(numkey)||isnan(numkey)) % if input is number, assign as whale numbe
 
         % update AR2
         if ~isempty(Ind{2})
-            DET{2}.('Label')(Ind{2}) = key;
+            DET{2}.('Label') = ww_pad_label_assign(DET{2}.('Label'), Ind{2}, key);
             DET{2}.('color')(Ind{2}) = numkey + 2;
             for isp = 1:3
                 set(source.Children(isp).Children, 'cdata', brushing.params.colorMat(DET{2}.('color'), :))
@@ -291,29 +297,35 @@ else % if input is letter, perform associated function
 
         case 'e' % extended numbers
 
-            extend = inputdlg(['Enter extended number 10 through 15']);
+            extend = inputdlg(['Enter extended number 10 through 20']);
             numkey = str2double(extend{1});
 
-            DETprev = DET; % set DETprev as current state for undo
+            if isempty(numkey) || isnan(numkey) || numkey<10 || numkey>20
+                errBox = msgbox('error: invalid whale number\nSelect a number 10 through 20', 'Error');
+            else
+                DETprev = DET; % set DETprev as current state for undo
 
-        % update AR1
-        if ~isempty(Ind{1})
-            DET{1}.('Label')(Ind{1}) = numkey;
-            DET{1}.('color')(Ind{1}) = (numkey + 2);
-            for isp = 4:6
-                set(source.Children(isp).Children, 'cdata', brushing.params.colorMat(DET{1}.('color'), :))
-            end
-        end
+                % update AR1
+                if ~isempty(Ind{1})
+                    DET{1}.('Label') = ww_pad_label_assign(DET{1}.('Label'), Ind{1}, numkey);
+                    DET{1}.('color')(Ind{1}) = (numkey + 2);
+                    for isp = 4:6
+                        set(source.Children(isp).Children, 'cdata', brushing.params.colorMat(DET{1}.('color'), :))
+                    end
+                end
 
-        % update AR2
-        if ~isempty(Ind{2})
-            DET{2}.('Label')(Ind{2}) = numkey;
-            DET{2}.('color')(Ind{2}) = numkey + 2;
-            for isp = 1:3
-                set(source.Children(isp).Children, 'cdata', brushing.params.colorMat(DET{2}.('color'), :))
+                % update AR2
+                if ~isempty(Ind{2})
+                    DET{2}.('Label') = ww_pad_label_assign(DET{2}.('Label'), Ind{2}, numkey);
+                    DET{2}.('color')(Ind{2}) = numkey + 2;
+                    for isp = 1:3
+                        set(source.Children(isp).Children, 'cdata', brushing.params.colorMat(DET{2}.('color'), :))
+                    end
+                end
             end
-        end
-            
+            ww_refresh_encounter_options();
+
+
         case 'd' % delete
             DETprev = DET; % set DETprev as current state for undo
 
@@ -363,6 +375,7 @@ else % if input is letter, perform associated function
 
             % update spectra figure
             ww_generateSpectraPlot('species', DET, f, brushing);
+            ww_refresh_encounter_options(); % deleting detections can remove a whale's last remaining label
 
         case 'a'
             Arrstruct = inputdlg('Enter labeled array (''1'' or ''2''):', 'Associate whales');
@@ -383,11 +396,18 @@ else % if input is letter, perform associated function
                 wnums(wnums==2) = []; % remove 'unlabeled'
                 for wn = 1:length(wnums)
                     DET = ww_whaleAssociate(DET, labeledInstnum, unlabeledInstnum, wnums(wn)-2);
-                    
+
                 end
             else % process only specified whale
                 wn = str2double(whalenum{1});
-                DET = ww_whaleAssociate(DET, labeledInstnum, unlabeledInstnum, wn);
+                nColors = size(brushing.params.colorMat,1);
+                if isnan(wn) || wn<1 || wn>nColors-2
+                    errordlg(sprintf('Invalid whale number. Enter a number 1 through %d, or ''a'' for all.', nColors-2))
+                elseif ~any(DET{labeledInstnum}.color == wn+2)
+                    errordlg(sprintf('Whale %d has no labeled detections on array %d.', wn, labeledInstnum))
+                else
+                    DET = ww_whaleAssociate(DET, labeledInstnum, unlabeledInstnum, wn);
+                end
             end
 
             if unlabeledInstnum==1
@@ -417,6 +437,7 @@ else % if input is letter, perform associated function
 
             % update spectra figure
             ww_generateSpectraPlot('species', DET, f, brushing);
+            ww_refresh_encounter_options(); % associating whales can label the other array's detections
 
 
         case 'z' % toggle zoom on
@@ -515,6 +536,7 @@ else % if input is letter, perform associated function
 
             % update spectra figure
             ww_generateSpectraPlot('species', DET, f);
+            ww_refresh_encounter_options(); % undo can revert whale-label assignments
 
         case 'y' % plot the mean spectra of selected clicks
 
@@ -528,3 +550,6 @@ else % if input is letter, perform associated function
 end
 
 end
+
+% ww_pad_label_assign is now its own file (ww_pad_label_assign.m) so
+% ww_whaleAssociate.m can share it too.

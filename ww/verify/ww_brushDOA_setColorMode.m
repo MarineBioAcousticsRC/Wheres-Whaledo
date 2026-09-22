@@ -6,15 +6,24 @@ function ww_brushDOA_setColorMode(mode)
 
 global PARAMS brushing DET
 
+% both modes share one palette, so colors never run off the end of
+% whichever file was loaded last (loadParams doesn't clear old rows)
+loadParams(PARAMS.path.repo+"\ww\verify\brushing_colors\brushing_pastel")
+nColors = size(brushing.params.colorMat,1);
+
 switch mode
     case "Whale number"
-        loadParams(PARAMS.path.repo+"\ww\verify\brushing_colors\brushing_pastel")
         for lab = 1:numel(DET)
-            DET{lab}.color = str2num(DET{lab}.Label) + 2;
+            c = str2double(string(DET{lab}.Label)) + 2;
+            invalid = isnan(c) | c<1 | c>nColors;
+            if any(invalid)
+                warning('%d detection(s) on array %d have an invalid/out-of-range whale label; treating as unlabeled.', sum(invalid), lab);
+                c(invalid) = 2; % unlabeled
+            end
+            DET{lab}.color = c;
         end
 
     case "Species label"
-        loadParams(PARAMS.path.repo+"\ww\verify\brushing_colors\brushing.params")
         unqSp = [];
         for sp = 1:numel(DET)
             unqSp = [unqSp;unique(DET{sp}.Species)];
@@ -23,10 +32,13 @@ switch mode
         for sp = 1:numel(DET)
             for u = 1:length(unqSp)
                 spMatch = find(DET{sp}.Species==unqSp(u));
-                DET{sp}.color(spMatch) = u + 2;
-            end    
+                % wrap through the available color rows if there are more
+                % unique species than colors
+                cidx = 3 + mod(u-1, max(1, nColors-2));
+                DET{sp}.color(spMatch) = cidx;
+            end
         end
-        
+
 end
 
 % refresh plotted colors
@@ -50,7 +62,8 @@ drawnow
 if mode == "Whale number"
     labels = ["Whale 1", "Whale 2", "Whale 3", "Whale 4", "Whale 5", ...
         "Whale 6", "Whale 7", "Whale 8", "Whale 9", "Whale 10", ...
-        "Whale 11", "Whale 12", "Whale 13", "Whale 14", "Whale 15"];
+        "Whale 11", "Whale 12", "Whale 13", "Whale 14", "Whale 15", ...
+        "Whale 16", "Whale 17", "Whale 18", "Whale 19", "Whale 20"];
 elseif mode == "Species label"
     labels = unqSp;
 end

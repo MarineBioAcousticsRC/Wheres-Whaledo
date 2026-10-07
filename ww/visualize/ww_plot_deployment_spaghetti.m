@@ -19,8 +19,15 @@ if strcmp(HANDLES.ui.viz.sepSp.Value,'Separate by species') % if we need to sepa
 
     figs = containers.Map('KeyType','char','ValueType','any');
 
+    % track/encounter counts, total and per species
+    nTracks = 0;
+    nEnc = 0;
+    trackCount = containers.Map('KeyType','char','ValueType','double');
+    encCount = containers.Map('KeyType','char','ValueType','double');
+
     for j = 1:numel(df) % for each encounter
 
+        clear whale % so an encounter with no whale struct doesn't reuse the previous one
         thisEnc = dir(df(j).folder+"\"+df(j).name+"\*whale_struct.mat");
         if ~isempty(thisEnc)
             load(fullfile(thisEnc.folder,thisEnc.name));
@@ -36,6 +43,11 @@ if strcmp(HANDLES.ui.viz.sepSp.Value,'Separate by species') % if we need to sepa
         % Species/wlocSmooth/etc. below doesn't error
         whale = whale(~cellfun(@isempty, whale));
 
+        if ~isempty(whale)
+            nEnc = nEnc + 1;
+        end
+        encSpecies = strings(0); % species already counted for this encounter
+
         for wn = 1:numel(whale) % for each whale
 
             key = whale{wn}.Species(1); % grab latin species name for this whale
@@ -43,10 +55,23 @@ if strcmp(HANDLES.ui.viz.sepSp.Value,'Separate by species') % if we need to sepa
                 key = "NaN";
             end
 
-            % make the figure for this species if it doesn't exist already
+            % update counts
+            nTracks = nTracks + 1;
+            if ~isKey(trackCount,key)
+                trackCount(key) = 0;
+                encCount(key) = 0;
+            end
+            trackCount(key) = trackCount(key) + 1;
+            if ~any(encSpecies == key)
+                encCount(key) = encCount(key) + 1;
+                encSpecies(end+1) = key;
+            end
+
+            % make the figures for this species if they don't exist already
+            % figs(key) = [XY figure, Z figure]
             if ~isKey(figs,key)
 
-                figs(key) = figure('Name',key);
+                fXY = figure('Name',key+" XY");
                 hold on
                 contour(x, y, z', levels,'black','showtext','on')
                 % plot(h1(1),h1(2),'s','markeredgecolor','black','markerfacecolor','black','markersize',6);
@@ -56,13 +81,28 @@ if strcmp(HANDLES.ui.viz.sepSp.Value,'Separate by species') % if we need to sepa
                 xlabel('W-E Distance (m)')
                 ylabel('S-N Distnace (m)')
 
-            else
-                figure(figs(key))
-            end
+                fZ = figure('Name',key+" Z");
+                hold on
+                colormap(cmap) % set colormap for tracks
+                title(key)
+                xlabel('Elapsed Time (min)')
+                ylabel('Depth (m)')
 
-            % plot this whale onto the correct figure
+                figs(key) = [fXY fZ];
+
+            end
+            thisFigs = figs(key);
+
+            % plot this whale onto the correct XY figure
+            figure(thisFigs(1))
             nTime = cumsum(diff(whale{wn}.TDet))/(whale{wn}.TDet(end)-whale{wn}.TDet(1));
             patch([whale{1,wn}.wlocSmooth(2:end,1);nan], [whale{1,wn}.wlocSmooth(2:end,2);nan],[nTime;nan],'facecolor','none','edgecolor','interp','linewidth',2)
+
+            % plot this whale onto the correct Z figure
+            figure(thisFigs(2))
+            tElapsed = minutes(whale{wn}.TDet - whale{wn}.TDet(1)); % elapsed time since track start
+            % depth = abs(h0(3)) - whale{wn}.wlocSmooth(:,3); % wlocSmooth z is relative to reference depth
+            patch([tElapsed(2:end);nan], [whale{wn}.wlocSmooth(2:end,3)+h0(3);nan],[nTime;nan],'facecolor','none','edgecolor','interp','linewidth',2)
 
             % grab ranges for axis limits later
             thisMax = max(whale{wn}.wlocSmooth);
@@ -83,10 +123,27 @@ if strcmp(HANDLES.ui.viz.sepSp.Value,'Separate by species') % if we need to sepa
         end
     end
 
+    % print counts
+    fprintf('%d tracks across %d encounters\n', nTracks, nEnc);
+    spKeys = keys(trackCount);
+    for k = 1:numel(spKeys)
+        fprintf('    %s: %d tracks across %d encounters\n', spKeys{k}, trackCount(spKeys{k}), encCount(spKeys{k}));
+    end
+
      % set axis limits
      figVals = values(figs);
      for f = 1:numel(figVals)
-         figure(figVals{f})
+
+         % Z figure
+         figure(figVals{f}(2))
+         xlim([0 inf])
+         cb = colorbar;
+         cb.Ticks = [];
+         clim([0 1])
+         ylabel(cb,'Elapsed Track Time (minutes, start → end)')
+
+         % XY figure
+         figure(figVals{f}(1))
          plot(h1(1),h1(2),'s','markeredgecolor','white','markerfacecolor','black','markersize',6);
          plot(h2(1),h2(2),'s','markeredgecolor','white','markerfacecolor','black','markersize',6);
          rangeMax = max(abs(ranges),[],'all');
@@ -101,15 +158,26 @@ if strcmp(HANDLES.ui.viz.sepSp.Value,'Separate by species') % if we need to sepa
 
 elseif strcmp(HANDLES.ui.viz.sepSp.Value,'Combine all species') % otherwise put them all on one figure
 
-    figure;
+    fXY = figure('Name',"XY");
     hold on
     contour(x, y, z',levels,'black','showtext','on');
     colormap(cmap) % set colormap for tracks
     xlabel('W-E Distance (m)')
     ylabel('N-S Distnace (m)')
 
+    fZ = figure('Name',"Z");
+    hold on
+    colormap(cmap) % set colormap for tracks
+    xlabel('Elapsed Time (min)')
+    ylabel('Depth (m)')
+
+    % track/encounter counts
+    nTracks = 0;
+    nEnc = 0;
+
     for j = 1:numel(df) % for each encounter
 
+        clear whale % so an encounter with no whale struct doesn't reuse the previous one
         thisEnc = dir(df(j).folder+"\"+df(j).name+"\*whale_struct.mat");
         if ~isempty(thisEnc)
             load(fullfile(thisEnc.folder,thisEnc.name));
@@ -125,11 +193,23 @@ elseif strcmp(HANDLES.ui.viz.sepSp.Value,'Combine all species') % otherwise put 
         % wlocSmooth/etc. below doesn't error
         whale = whale(~cellfun(@isempty, whale));
 
+        % update counts
+        nTracks = nTracks + numel(whale);
+        if ~isempty(whale)
+            nEnc = nEnc + 1;
+        end
+
         for wn = 1:numel(whale) % for each whale
 
-            % plot this whale onto the correct figure
+            % plot this whale onto the XY figure
+            figure(fXY)
             nTime = cumsum(diff(whale{wn}.TDet))/(whale{wn}.TDet(end)-whale{wn}.TDet(1));
             patch([whale{1,wn}.wlocSmooth(2:end,1);nan], [whale{1,wn}.wlocSmooth(2:end,2);nan],[nTime;nan],'facecolor','none','edgecolor','interp','linewidth',2)
+
+            % plot this whale onto the Z figure
+            figure(fZ)
+            tElapsed = minutes(whale{wn}.TDet - whale{wn}.TDet(1)); % elapsed time since track start
+            patch([tElapsed(2:end);nan], [whale{wn}.wlocSmooth(2:end,3)+h0(3);nan],[nTime;nan],'facecolor','none','edgecolor','interp','linewidth',2)
 
             % grab ranges for axis limits later
             thisMax = max(whale{wn}.wlocSmooth);
@@ -150,6 +230,19 @@ elseif strcmp(HANDLES.ui.viz.sepSp.Value,'Combine all species') % otherwise put 
         end
     end
 
+    % print counts
+    fprintf('%d tracks across %d encounters\n', nTracks, nEnc);
+
+    % Z figure
+    figure(fZ)
+    xlim([0 inf])
+    cb = colorbar;
+    cb.Ticks = [];
+    clim([0 1])
+    ylabel(cb,'Elapsed Track Time (minutes, start → end)')
+
+    % XY figure
+    figure(fXY)
     plot(h1(1),h1(2),'s','markeredgecolor','white','markerfacecolor','black','markersize',6);
     plot(h2(1),h2(2),'s','markeredgecolor','white','markerfacecolor','black','markersize',6);
 

@@ -6,6 +6,6 @@ function XH = ww_build_xwav_dir(xwavPath);
 % input: xwav file path
 % output: directory of xwav files within that path (checks subfolders)
 
-XH = dir(xwavPath + "\**\*.x.wav");
+XH = dir(fullfile(xwavPath,'**','*.x.wav')); 
 
 end

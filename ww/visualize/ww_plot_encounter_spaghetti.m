@@ -20,6 +20,9 @@ else
     return
 end
 
+% print counts
+fprintf('%d tracks across 1 encounter\n', sum(~cellfun(@isempty, whale)));
+
 % start plotting
 f = figure;
 contour(x, y, z', levels,'black','showtext','on')
@@ -27,10 +30,22 @@ hold on
 plot(h1(1),h1(2),'s','markeredgecolor','black','markerfacecolor','black','markersize',6);
 plot(h2(1),h2(2),'s','markeredgecolor','black','markerfacecolor','black','markersize',6);
 hold on
+
+fZ = figure;
+hold on
+xlabel('Elapsed Time (min)')
+ylabel('Depth (m)')
+
 if strcmp(HANDLES.ui.viz.encColorBy.Value,'Whale number')
     loadParams(PARAMS.path.repo+"\ww\verify\brushing_colors\brushing_pastel")
     for wn = 1:numel(whale)
+        figure(f)
         plot(whale{wn}.wlocSmooth(:,1),whale{wn}.wlocSmooth(:,2),'Color',brushing.params.colorMat(wn+2,:),...
+            'linewidth',2)
+
+        figure(fZ)
+        tElapsed = minutes(whale{wn}.TDet - whale{wn}.TDet(1)); % elapsed time since track start
+        plot(tElapsed,whale{wn}.wlocSmooth(:,3)+h0(3),'Color',brushing.params.colorMat(wn+2,:),...
             'linewidth',2)
 
         % grab ranges for axis limits later
@@ -50,6 +65,11 @@ if strcmp(HANDLES.ui.viz.encColorBy.Value,'Whale number')
         end
     end
 
+    % Z figure
+    xlim([0 inf])
+
+    % XY figure
+    figure(f)
     rangeMax = max(abs(ranges),[],'all');
     rangeLims = [ceil(rangeMax/1000)*-1000 ceil(rangeMax/1000)*1000]; % round to nearest kilometer
 
@@ -66,7 +86,13 @@ elseif strcmp(HANDLES.ui.viz.encColorBy.Value,'Species')
 
     for wn = 1:numel(whale)
         spcMatch = find(strcmp(whale{wn}.Species(1),uniqueSpecies));
+        figure(f)
         plot(whale{wn}.wlocSmooth(:,1),whale{wn}.wlocSmooth(:,2),'Color',brushing.params.colorMat(spcMatch+2,:),...
+            'linewidth',2)
+
+        figure(fZ)
+        tElapsed = minutes(whale{wn}.TDet - whale{wn}.TDet(1)); % elapsed time since track start
+        plot(tElapsed,whale{wn}.wlocSmooth(:,3)+h0(3),'Color',brushing.params.colorMat(spcMatch+2,:),...
             'linewidth',2)
 
         % grab ranges for axis limits later
@@ -88,9 +114,16 @@ elseif strcmp(HANDLES.ui.viz.encColorBy.Value,'Species')
 
     % plot dummy variables for legend
     for j = 1:numel(uniqueSpecies)
+        dumZ(j) = plot(nan,nan,'color',brushing.params.colorMat(j+2,:),'linewidth',2);
+    end
+    xlim([0 inf])
+    legend(dumZ,uniqueSpecies)
+
+    figure(f)
+    for j = 1:numel(uniqueSpecies)
         dum(j) = plot(nan,nan,'color',brushing.params.colorMat(j+2,:),'linewidth',2);
     end
-    
+
     % restrict ranges
     rangeMax = max(abs(ranges),[],'all');
     rangeLims = [ceil(rangeMax/1000)*-1000 ceil(rangeMax/1000)*1000]; % round to nearest kilometer
@@ -103,12 +136,18 @@ elseif strcmp(HANDLES.ui.viz.encColorBy.Value,'Species')
 
 elseif strcmp(HANDLES.ui.viz.encColorBy.Value,'Time (normalized per track)')
 
-    colormap(cmocean(HANDLES.ui.viz.encColors.Value));
+    colormap(f,cmocean(HANDLES.ui.viz.encColors.Value));
+    colormap(fZ,cmocean(HANDLES.ui.viz.encColors.Value));
 
     for wn = 1:numel(whale)
-        
+
+        figure(f)
         nTime = cumsum(diff(whale{wn}.TDet))/(whale{wn}.TDet(end)-whale{wn}.TDet(1));
         patch([whale{1,wn}.wlocSmooth(2:end,1);nan], [whale{1,wn}.wlocSmooth(2:end,2);nan],[nTime;nan],'facecolor','none','edgecolor','interp','linewidth',2)
+
+        figure(fZ)
+        tElapsed = minutes(whale{wn}.TDet - whale{wn}.TDet(1)); % elapsed time since track start
+        patch([tElapsed(2:end);nan], [whale{wn}.wlocSmooth(2:end,3)+h0(3);nan],[nTime;nan],'facecolor','none','edgecolor','interp','linewidth',2)
 
         % grab ranges for axis limits later
         thisMax = max(whale{wn}.wlocSmooth);
@@ -126,7 +165,17 @@ elseif strcmp(HANDLES.ui.viz.encColorBy.Value,'Time (normalized per track)')
             ranges(2,2) = thisMax(2);
         end
     end
-    
+
+    % Z figure
+    xlim([0 inf])
+    clim([0 1]);
+    cb = colorbar;
+    cb.Ticks = [];
+    ylabel(cb,'Normalized Track Time (start → end)')
+
+    % XY figure
+    figure(f)
+
     % restrict ranges
     rangeMax = max(abs(ranges),[],'all');
     rangeLims = [ceil(rangeMax/1000)*-1000 ceil(rangeMax/1000)*1000]; % round to nearest kilometer

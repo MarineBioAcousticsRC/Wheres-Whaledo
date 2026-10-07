@@ -298,7 +298,11 @@ else % if input is letter, perform associated function
         case 'e' % extended numbers
 
             extend = inputdlg(['Enter extended number 10 through 20']);
-            numkey = str2double(extend{1});
+            if isempty(extend) % user cancelled the dialog instead of entering a number
+                numkey = [];
+            else
+                numkey = str2double(extend{1});
+            end
 
             if isempty(numkey) || isnan(numkey) || numkey<10 || numkey>20
                 errBox = msgbox('error: invalid whale number\nSelect a number 10 through 20', 'Error');
@@ -379,8 +383,11 @@ else % if input is letter, perform associated function
 
         case 'a'
             Arrstruct = inputdlg('Enter labeled array (''1'' or ''2''):', 'Associate whales');
+            if isempty(Arrstruct) % user cancelled the dialog instead of entering a value
+                return
+            end
             labeledInstnum = str2double(Arrstruct{1});
-            
+
             if labeledInstnum==1
                 unlabeledInstnum = 2;
             elseif labeledInstnum==2
@@ -390,7 +397,10 @@ else % if input is letter, perform associated function
             end
 
             whalenum = inputdlg('Enter whale number to associate(a number, or ''a'' for all): ', 'Associate whales');
-            
+            if isempty(whalenum) % user cancelled the dialog instead of entering a value
+                return
+            end
+
             if strcmp(whalenum{1}, 'a') % process all whales
                 wnums = unique(DET{labeledInstnum}.color);
                 wnums(wnums==2) = []; % remove 'unlabeled'

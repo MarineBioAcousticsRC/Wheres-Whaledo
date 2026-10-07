@@ -127,6 +127,20 @@ for wn = 1:numel(whaleIn) % for each whale in this encounter
 
         end
 
+        % the loop above only fills columns 1..N-1 (each iteration
+        % processes the transition FROM detection i TO i+1); the very
+        % last detection has no "next" point to predict forward to, so
+        % it was left at its zeros(6,N) initialization -- a spurious
+        % point at the coordinate origin that the moving-average
+        % smoothing below then blends into the last several points,
+        % producing a hook toward the origin at the end of every track.
+        % Use the actual last measurement instead.
+        if ~isnan(measurements(N,1))
+            x_interpolated(:, N) = [measurements(N,1); measurements(N,2); measurements(N,3); vel; vel; vel];
+        else
+            x_interpolated(:, N) = nan;
+        end
+
         % grab our estimated positions
         positions_estimated = x_interpolated(1:3, :); % x, y, z
         % azimuth_estimated = x_interpolated(7, :);

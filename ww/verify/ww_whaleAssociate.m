@@ -21,24 +21,32 @@ fwb = waitbar(0, ['Associating whale ', num2str(whaleNum), '...']);
 DETout = DETin;
 maxlag = ceil(WAparam.maxTDOA.*WAparam.fsct); % max lag used in xcorr
 
-Iwn = find(DETout{labeledInstNum}.color==whaleNum+2); % Indices of detections labeled whaleNum
-TDetL = DETout{labeledInstNum}.TDet(Iwn); % detection times on labeled array
+% datetime/duration arithmetic on large arrays inside the loops below was
+% a major slowdown after switching from datenum -- each detection
+% re-triggered a full datetime subtraction across the whole click-train
+% vector (tct, ~twin*fsct elements). Nothing in this function writes
+% TDet back to DETout (only Label/color, neither time-typed), so there's
+% no need to convert anything back -- just work in datenum (plain
+% doubles) for the search/correlation logic below.
+spd = 86400; % seconds per day
 
-TDetO = DETout{otherInstNum}.TDet; % all detection times on other array 
+Iwn = find(DETout{labeledInstNum}.color==whaleNum+2); % Indices of detections labeled whaleNum
+TDetL = datenum(DETout{labeledInstNum}.TDet(Iwn)); % detection times on labeled array
+
+TDetO = datenum(DETout{otherInstNum}.TDet); % all detection times on other array
 
 tstart = TDetL(1); % start time of segment in this window
-tend = tstart + seconds(WAparam.twin); % end of time segment
-tnext = seconds(WAparam.overlap*WAparam.twin);
+tend = tstart + WAparam.twin/spd; % end of time segment
+tnext = WAparam.overlap*WAparam.twin/spd;
 
-niter = (TDetL(end)-TDetL(1))/seconds(WAparam.twin) + 1; % expected number of iterations
+niter = (TDetL(end)-TDetL(1))/(WAparam.twin/spd) + 1; % expected number of iterations
 iter = 0; % current iteration
 while tstart<=TDetL(end) % compute while tstart is less than last labeled detection
-    
+
     iter = iter+1;
     waitbar(iter/niter, fwb, ['Associating whale ', num2str(whaleNum), '...']);
 
-    % tct = tstart:1/(WAparam.fsct*spd):tend; % time vector of click train
-    tct = tstart:seconds(1/WAparam.fsct):tend; % time vector of click train
+    tct = tstart:1/(WAparam.fsct*spd):tend; % time vector of click train
 
     xL = zeros(1, length(tct)); % initialize click train signal of labeled clicks
     xO = xL; % initialize click train signal on other array
@@ -54,13 +62,13 @@ while tstart<=TDetL(end) % compute while tstart is less than last labeled detect
 
     % create click trains with delta functions for labeled array:
     for i = 1:length(IwinL)
-        [~, I] = min(seconds(tct-TDetL(IwinL(i))).^2); % index of click train time vector closest to detection time
+        [~, I] = min((tct-TDetL(IwinL(i))).^2); % index of click train time vector closest to detection time
         xL(I) = 1; % replace index of detection with 1
     end
 
     % create click trains with delta functions for labeled array:
     for i = 1:length(IwinO)
-        [~, I] = min(seconds(tct-TDetO(IwinO(i))).^2); % index of click train time vector closest to detection time
+        [~, I] = min((tct-TDetO(IwinO(i))).^2); % index of click train time vector closest to detection time
         xO(I) = 1; % replace index of detection with 1
     end
 
@@ -81,31 +89,30 @@ while tstart<=TDetL(end) % compute while tstart is less than last labeled detect
             PKS(iter, :) = pks;
         else % insufficient detections aligned in click trains
             tstart = tstart + tnext;
-            tend = tstart + seconds(WAparam.twin);
+            tend = tstart + WAparam.twin/spd;
             continue % skip to next time period
         end
     else % zero or 1 peak was found, continue to next time period
         tstart = tstart + tnext;
-        tend = tstart + seconds(WAparam.twin);
+        tend = tstart + WAparam.twin/spd;
         continue % skip to next time period
     end
     % iterate through labeled detections, find the ones that most closely
     % match on the other array, and assign that detection a label
     for i = 1:length(IwinL)
-        % [tdif, I] = min(abs(TDetO - TDetL(IwinL(i)) + bestLag./(WAparam.fsct*spd))); % difference between this detection and closest detection on other array
-        lagDur = seconds(bestLag / WAparam.fsct);
+        lagDur = bestLag/(WAparam.fsct*spd); % difference between this detection and closest detection on other array
         [tdif, I] = min(abs(TDetO - (TDetL(IwinL(i)) - lagDur)));
 
         % if detection on other array fell within one hanning window if
         % expected detection time, label it as whaleNum
-        if tdif<seconds(WAparam.tCloseEnough)
+        if tdif<WAparam.tCloseEnough/spd
             DETout{otherInstNum}.Label = ww_pad_label_assign(DETout{otherInstNum}.Label, I, whaleNum);
             DETout{otherInstNum}.color(I) = whaleNum + 2;
         end
     end
 
     tstart = tstart + tnext;
-    tend = tstart + seconds(WAparam.twin);
+    tend = tstart + WAparam.twin/spd;
 
 end
 close(fwb)

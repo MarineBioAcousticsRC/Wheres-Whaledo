@@ -97,7 +97,7 @@ HANDLES.ui.enc.infoText = uitextarea(col1, ...
     'Editable','off', ...
     'FontSize',14, ...   % ← increase this
     'Value',[ ...
-    "Keystroke Commands:"
+    "Keystroke Commands (BrushDOA figure):"
     "• Press 0 to remove a whale number label"
     "• Press numbers to assign whale number labels"
     "• Press 'e' to assign a whale number greater than 9"
@@ -109,6 +109,10 @@ HANDLES.ui.enc.infoText = uitextarea(col1, ...
     "• Press 'u' to undo"
     "• Press 'y' to view mean spectra of selected detections"
     "• Press 'v' to view 3D positions of labeled whales"
+    ""
+    "Keystroke Commands (3D positions figure)"
+    "• Press 't' to enter or exit rotation mode and turn the figure"
+    "• Press 's' to show selected 3D points on the BrushDOA figure"
     ""
     "Use brushing to select points."
     ]);

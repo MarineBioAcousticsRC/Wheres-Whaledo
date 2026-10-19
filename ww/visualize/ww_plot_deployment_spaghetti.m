@@ -1,11 +1,21 @@
-function ww_plot_deployment_spaghetti()
+function ww_plot_deployment_spaghetti(whaleFileFilter)
 
 % ww_plot_deployment_spaghetti()
+% ww_plot_deployment_spaghetti(whaleFileFilter)
 %
 % function for plotting a spaghetti plot for the whole deployment
 % color by species or combine them all into one figure
+%
+% whaleFileFilter (optional): string array of whale_struct file names (no
+% folder). If given, only encounters whose whale_struct file is in the list
+% are plotted.
 
 global PARAMS HANDLES
+
+if nargin < 1
+    whaleFileFilter = strings(0);
+end
+whaleFileFilter = string(whaleFileFilter);
 
 [h0, h1, h2, ~, ~] = ww_instrumentOrientations_to_xy();
 [~, ~, z, levels, x, y] = ww_GMRT_bathy(str2num(HANDLES.ui.viz.cStep.Value),h0); % get bathymetry data
@@ -29,6 +39,9 @@ if strcmp(HANDLES.ui.viz.sepSp.Value,'Separate by species') % if we need to sepa
 
         clear whale % so an encounter with no whale struct doesn't reuse the previous one
         thisEnc = dir(df(j).folder+"\"+df(j).name+"\*whale_struct.mat");
+        if ~isempty(thisEnc) && ~isempty(whaleFileFilter) && ~ismember(string(thisEnc(1).name), whaleFileFilter)
+            continue % not in the requested subset
+        end
         if ~isempty(thisEnc)
             load(fullfile(thisEnc.folder,thisEnc.name));
         end
@@ -179,6 +192,9 @@ elseif strcmp(HANDLES.ui.viz.sepSp.Value,'Combine all species') % otherwise put 
 
         clear whale % so an encounter with no whale struct doesn't reuse the previous one
         thisEnc = dir(df(j).folder+"\"+df(j).name+"\*whale_struct.mat");
+        if ~isempty(thisEnc) && ~isempty(whaleFileFilter) && ~ismember(string(thisEnc(1).name), whaleFileFilter)
+            continue % not in the requested subset
+        end
         if ~isempty(thisEnc)
             load(fullfile(thisEnc.folder,thisEnc.name));
         end

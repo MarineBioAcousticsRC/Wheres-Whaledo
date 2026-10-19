@@ -4,7 +4,7 @@ function [whaleOut] = ww_kalman_smooth_whales(whaleIn,vel,win,maxtimegap)
 %
 % Take localized points from Where's Whaledo loc3D_DOA_intersect and smooth
 % them with a constant-velocity Kalman filter + Rauch-Tung-Striebel (RTS)
-% smoother, then finish with moving average smoothing.
+% smoother, then finish with Gaussian smoothing over time.
 % LMB Oct 2024, rewritten Oct 2026
 % lbaggett@ucsd.edu
 %
@@ -17,7 +17,7 @@ function [whaleOut] = ww_kalman_smooth_whales(whaleIn,vel,win,maxtimegap)
 %      their localization error) are treated as outliers and skipped
 %   3. backward RTS pass, so each smoothed position uses detections both
 %      before and after it
-%   4. moving average within each segment
+%   4. Gaussian smoothing over time (window in seconds) within each segment
 %   5. clamp smoothed positions so they can't go above the sea surface
 %
 % Inputs:
@@ -25,16 +25,18 @@ function [whaleOut] = ww_kalman_smooth_whales(whaleIn,vel,win,maxtimegap)
 % vel: the average velocity (meters / second) you assume the whale is moving, get from
 %       literature. Sets how quickly the filter lets the whale's velocity
 %       change: velocity can drift by about vel over maxtimegap seconds.
-% win: the number of detections that you would like to consider in your
-%       moving average. This step further smooths your detections. If you would
-%       not like to calculate a moving average, set this value at 1.
+% win: width of the Gaussian smoothing window in seconds (MATLAB smoothdata
+%       convention: the full window width, with standard deviation win/5).
+%       This step further smooths the Kalman/RTS track evenly in time,
+%       however bursty the detections are. Set to 0 to skip it.
+%       (Before Oct 2026 this was a moving average over win detections.)
 % maxtimegap: the maximum time gap (seconds) allowed between points that you are
 %       interpolating through. If you encounter a time gap larger than this
 %       threshold, the track is broken there (the last smoothed point before
 %       the gap is set to NaN so plotted lines don't connect across it).
 %
 % Example input:
-% whale = ww_kalman_smooth_whales(whale,1,20,60);
+% whale = ww_kalman_smooth_whales(whale,1,10,60);
 %   ** these are the settings that I typically use for beaked whales (Zc).
 %       Modify as necessary for your species of interest.
 
@@ -187,13 +189,24 @@ for wn = 1:numel(whaleIn) % for each whale in this encounter
                 x_smooth(:,k) = x_filt(:,k) + C*(x_smooth(:,k+1) - x_pred(:,k+1));
             end
 
-            % moving average within this segment
-            % if the window size is larger than the number of points we have
-            % (happens around the endpoints), shrink to fit to the smaller
-            % window
+            % Gaussian smoothing over time within this segment. The window
+            % is in seconds, so smoothing is even in time no matter how
+            % bursty the detections are. smoothdata shrinks the window at
+            % the segment ends.
             seg = x_smooth(1:3,:)';
-            for ax = 1:3
-                seg(:,ax) = movmean(seg(:,ax), win, 'omitnan', 'endpoints', 'shrink');
+            if win > 0
+                good = ~any(isnan(seg),2);
+                if sum(good) > 1
+                    % smoothdata needs unique sample times, so average
+                    % detections that share a timestamp, then map back
+                    [tu,~,ic] = unique(tsec(idx(good)));
+                    segU = zeros(numel(tu),3);
+                    for ax = 1:3
+                        segU(:,ax) = accumarray(ic, seg(good,ax), [], @mean);
+                    end
+                    segU = smoothdata(segU, 1, 'gaussian', win, 'SamplePoints', tu);
+                    seg(good,:) = segU(ic,:); % NaN positions stay NaN
+                end
             end
             positions_estimated(idx,:) = seg;
 

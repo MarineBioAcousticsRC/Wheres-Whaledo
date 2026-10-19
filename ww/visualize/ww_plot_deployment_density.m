@@ -108,6 +108,10 @@ if strcmp(HANDLES.ui.viz.sepSp.Value,'Separate by species')
         key = speciesKeys{s};
         thisGrid = grids(key);
 
+        if ~any(thisGrid,'all') % nothing localized for this species
+            continue
+        end
+
         figure('Name',key)
         h = imagesc(xEdges,yEdges,thisGrid);
         set(gca,'YDir','normal')
@@ -127,7 +131,7 @@ if strcmp(HANDLES.ui.viz.sepSp.Value,'Separate by species')
             'markersize',6)
 
         colormap(cmap)
-        caxis([1 max(thisGrid,[],'all')]);
+        caxis([1 max(2, max(thisGrid,[],'all'))]); % limits must increase, even if every cell has 1 track
         cb = colorbar;
         ylabel(cb,'Number of tracks')
 
@@ -148,7 +152,7 @@ if strcmp(HANDLES.ui.viz.sepSp.Value,'Separate by species')
 
     end
 
-elseif strcmp(HANDLES.ui.viz.sepSp.Value,'Combine all species')
+elseif strcmp(HANDLES.ui.viz.sepSp.Value,'Combine all species') && any(grdf,'all')
 
     figure
     h = imagesc(xEdges,yEdges,grdf);
@@ -169,7 +173,7 @@ elseif strcmp(HANDLES.ui.viz.sepSp.Value,'Combine all species')
         'markersize',6)
 
     colormap(cmap)
-    caxis([1 max(grdf,[],'all')]);
+    caxis([1 max(2, max(grdf,[],'all'))]); % limits must increase, even if every cell has 1 track
     cb = colorbar;
     ylabel(cb,'Number of tracks')
 

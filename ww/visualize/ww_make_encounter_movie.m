@@ -18,6 +18,17 @@ else
     return
 end
 
+% skip whales with no smoothed track (empty table or no wlocSmooth column),
+% keeping the original whale numbers for coloring
+hasTrack = cellfun(@(t) istable(t) && height(t) > 0 && ...
+    ismember('wlocSmooth',t.Properties.VariableNames), whale);
+whaleNum = find(hasTrack);
+whale = whale(hasTrack);
+if isempty(whale)
+    fprintf('No whales with smoothed tracks (wlocSmooth) in this whale struct, nothing to plot.\n')
+    return
+end
+
 % movie settings
 dt = 1; % seconds between movie frames
 extraTime = 180; % seconds after last localization
@@ -134,7 +145,7 @@ for it = 1:length(tplot)
         end
 
         if strcmp(HANDLES.ui.viz.encColorBy.Value,'Whale number')
-            cl = wn;
+            cl = whaleNum(wn); % original whale number, so colors match brushing
         elseif strcmp(HANDLES.ui.viz.encColorBy.Value,'Species')
             % match back to species color for this whale
             cl = find(strcmp(unqSpecies,whale{wn}.Species(1)));

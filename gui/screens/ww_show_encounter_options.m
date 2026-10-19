@@ -521,7 +521,7 @@ refreshColumn3();
 
         % run cross-fix positions
         whale = ww_loc3D_DOAintersect_includeCI(DET, brushing);
-        smoothParams.vel = 1; smoothParams.win = 20; smoothParams.maxTimeGap = 60;
+        smoothParams.vel = 1; smoothParams.win = 10; smoothParams.maxTimeGap = 60; % vel m/s, win s (Gaussian window), maxTimeGap s
         whale = ww_kalman_smooth_whales(whale,smoothParams.vel,smoothParams.win,smoothParams.maxTimeGap);
 
         % plot these figures for saving

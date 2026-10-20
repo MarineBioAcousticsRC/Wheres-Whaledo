@@ -34,7 +34,8 @@ for j = 3:numel(fileDir) % for each saved track folder
     if ~isempty(wd) % if we have a saved whale struct in this folder
 
         % grab the encounter number from the file name
-        trackNum = regexp(wd(1).name,'enc(\d+)_(\d+)_(\d+)_to_(\d+)_(\d+)','tokens','once');
+        % (encN can be a number or number_species, e.g. enc1_Gg)
+        trackNum = regexp(wd(1).name,'enc(.+?)_(\d{6})_(\d{6})_to_(\d{6})_(\d{6})','tokens','once');
 
         % construct the metadata
         outfile = [HANDLES.ui.export.outPath.Value,'\ww_localized_tracks_enc',num2str(trackNum{1}),'_',num2str(trackNum{2}),'_',num2str(trackNum{3}),'_to_',num2str(trackNum{4}),'_',num2str(trackNum{5}),'.nc'];
@@ -42,7 +43,7 @@ for j = 3:numel(fileDir) % for each saved track folder
         author = HANDLES.ui.export.authorName.Value;
         email = HANDLES.ui.export.opt1.Value;
         doi = HANDLES.ui.export.opt2.Value;
-        matchIdx = find(enc.encN==str2num(trackNum{1}));
+        matchIdx = find(string(enc.encN)==trackNum{1});
         effort_start = [char(enc.startEnc(matchIdx)),' UTC'];
         effort_end = [char(enc.endEnc(matchIdx)),' UTC'];
         inst = PARAMS.project.ArrayOption + " HARP";

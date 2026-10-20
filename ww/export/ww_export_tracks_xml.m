@@ -55,7 +55,7 @@ import nilus.* % import nulis, pg 4
 for j = 1:height(enc)
 
     % match the track to this encounter number
-    matchIdx = find(strcmp({fileDir.name}, ['enc', num2str(enc.encN(j))]));
+    matchIdx = find(strcmp({fileDir.name}, char("enc" + string(enc.encN(j))))); % encN can be a number or text like 1_Gg
 
     if ~isempty(matchIdx) % if we tracked whales in this encounter
 
@@ -67,7 +67,7 @@ for j = 1:height(enc)
         m.marshal(l); % generate our XML (empty right now)
         h.createRequiredElements(l); % create the required elements
 
-        thisUnqId = [ens+'_'+PARAMS.project.ProjectName+'_tracks_'+PARAMS.project.UserId+'_encounter'+num2str(enc.encN(j))];
+        thisUnqId = [ens+'_'+PARAMS.project.ProjectName+'_tracks_'+PARAMS.project.UserId+'_encounter'+string(enc.encN(j))];
 
         l.setUserId(PARAMS.project.UserId);
         l.setId(thisUnqId); % unique ID for this file

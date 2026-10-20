@@ -159,8 +159,15 @@ HANDLES.ui.enc.saveFolderLabel = uilabel(HANDLES.ui.enc.col3, ...
     'HorizontalAlignment','right', ...
     'VerticalAlignment','center');
 % grab encounter name
-encNum = regexp(fname, 'enc\d+_', 'match');
-encNum = extractBefore(encNum,strlength(encNum));
+% encN can be a number (enc4) or number_species (enc1_Gg); species codes can
+% contain underscores, so take everything up to the _yymmdd_HHMMSS_to_ timestamps
+encTok = regexp(fname, 'enc(.+?)_\d{6}_\d{6}_to_', 'tokens', 'once');
+if ~isempty(encTok)
+    encNum = "enc" + encTok{1};
+else % fall back to the old enc<number> pattern
+    encNum = regexp(fname, 'enc\d+_', 'match');
+    encNum = extractBefore(encNum,strlength(encNum));
+end
 HANDLES.ui.enc.saveFolder = uieditfield(HANDLES.ui.enc.col3,'text', ...
     'Value',PARAMS.projectSaveFolder+"\cleaned_encounters\" + encNum + "\"+extractBefore(fname,".mat")+"_cleaned_"+PARAMS.project.UserId+".mat",...
     'Editable','on');

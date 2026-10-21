@@ -19,6 +19,8 @@ function [whaleOut] = ww_kalman_smooth_whales(whaleIn,vel,win,maxtimegap)
 %      before and after it
 %   4. Gaussian smoothing over time (window in seconds) within each segment
 %   5. clamp smoothed positions so they can't go above the sea surface
+% Whales with 10 or fewer clicks are too sparse to smooth; they still get a
+% wlocSmooth column, filled with NaN.
 %
 % Inputs:
 % whaleIn: the whale struct that is outputted from your loc3D intersect step
@@ -228,6 +230,11 @@ for wn = 1:numel(whaleIn) % for each whale in this encounter
 
         % combine smoothed coordinates
         whaleOut{wn}.wlocSmooth = positions_estimated;
+
+    elseif height(whaleIn{wn}) > 0
+        % too few clicks to smooth: still add the column (all NaN) so every
+        % whale table has wlocSmooth and plotting/export code doesn't error
+        whaleOut{wn}.wlocSmooth = nan(height(whaleIn{wn}),3);
 
     end
 

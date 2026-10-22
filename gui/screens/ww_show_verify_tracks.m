@@ -142,7 +142,10 @@ end
             return
         end
         names = string({d.name});
-        names = sort(names);
+        % natural sort: zero-pad digit runs so 'enc2' comes before 'enc10'
+        sortKeys = regexprep(cellstr(names), '\d+', '${[repmat(''0'',1,20-length($0)) $0]}');
+        [~, idx] = sort(lower(sortKeys));
+        names = names(idx);
         HANDLES.ui.verify.fileList.Items = cellstr(names);
         HANDLES.ui.verify.status.Text = sprintf("%d file(s). Select one and click Display.", numel(names));
     end

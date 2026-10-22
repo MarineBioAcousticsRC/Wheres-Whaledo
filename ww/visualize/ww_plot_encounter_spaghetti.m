@@ -33,7 +33,7 @@ hold on
 
 fZ = figure;
 hold on
-xlabel('Elapsed Time (min)')
+xlabel('Time')
 ylabel('Depth (m)')
 
 if strcmp(HANDLES.ui.viz.encColorBy.Value,'Whale number')
@@ -44,8 +44,8 @@ if strcmp(HANDLES.ui.viz.encColorBy.Value,'Whale number')
             'linewidth',2)
 
         figure(fZ)
-        tElapsed = minutes(whale{wn}.TDet - whale{wn}.TDet(1)); % elapsed time since track start
-        plot(tElapsed,whale{wn}.wlocSmooth(:,3)+h0(3),'Color',brushing.params.colorMat(wn+2,:),...
+        tDet = whale{wn}.TDet; % real detection timestamps
+        plot(tDet,whale{wn}.wlocSmooth(:,3)+h0(3),'Color',brushing.params.colorMat(wn+2,:),...
             'linewidth',2)
 
         % grab ranges for axis limits later
@@ -65,8 +65,6 @@ if strcmp(HANDLES.ui.viz.encColorBy.Value,'Whale number')
         end
     end
 
-    % Z figure
-    xlim([0 inf])
 
     % XY figure
     figure(f)
@@ -91,8 +89,8 @@ elseif strcmp(HANDLES.ui.viz.encColorBy.Value,'Species')
             'linewidth',2)
 
         figure(fZ)
-        tElapsed = minutes(whale{wn}.TDet - whale{wn}.TDet(1)); % elapsed time since track start
-        plot(tElapsed,whale{wn}.wlocSmooth(:,3)+h0(3),'Color',brushing.params.colorMat(spcMatch+2,:),...
+        tDet = whale{wn}.TDet; % real detection timestamps
+        plot(tDet,whale{wn}.wlocSmooth(:,3)+h0(3),'Color',brushing.params.colorMat(spcMatch+2,:),...
             'linewidth',2)
 
         % grab ranges for axis limits later
@@ -116,7 +114,6 @@ elseif strcmp(HANDLES.ui.viz.encColorBy.Value,'Species')
     for j = 1:numel(uniqueSpecies)
         dumZ(j) = plot(nan,nan,'color',brushing.params.colorMat(j+2,:),'linewidth',2);
     end
-    xlim([0 inf])
     legend(dumZ,uniqueSpecies)
 
     figure(f)
@@ -146,8 +143,13 @@ elseif strcmp(HANDLES.ui.viz.encColorBy.Value,'Time (normalized per track)')
         patch([whale{1,wn}.wlocSmooth(2:end,1);nan], [whale{1,wn}.wlocSmooth(2:end,2);nan],[nTime;nan],'facecolor','none','edgecolor','interp','linewidth',2)
 
         figure(fZ)
-        tElapsed = minutes(whale{wn}.TDet - whale{wn}.TDet(1)); % elapsed time since track start
-        patch([tElapsed(2:end);nan], [whale{wn}.wlocSmooth(2:end,3)+h0(3);nan],[nTime;nan],'facecolor','none','edgecolor','interp','linewidth',2)
+        tDet = whale{wn}.TDet; % real detection timestamps
+        axZ = gca;
+        if wn == 1
+            plot(axZ,tDet(1),nan) % make x-axis a datetime ruler so patch can use ruler units
+        end
+        tNum = ruler2num(tDet(:),axZ.XAxis);
+        patch([tNum(2:end);nan], [whale{wn}.wlocSmooth(2:end,3)+h0(3);nan],[nTime;nan],'facecolor','none','edgecolor','interp','linewidth',2)
 
         % grab ranges for axis limits later
         thisMax = max(whale{wn}.wlocSmooth);
@@ -166,8 +168,6 @@ elseif strcmp(HANDLES.ui.viz.encColorBy.Value,'Time (normalized per track)')
         end
     end
 
-    % Z figure
-    xlim([0 inf])
     clim([0 1]);
     cb = colorbar;
     cb.Ticks = [];

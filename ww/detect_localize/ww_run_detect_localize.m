@@ -7,7 +7,7 @@ function ww_run_detect_localize()
 global PARAMS HANDLES
 
 % add in a few other parameters that don't need to be customized:
-PARAMS.project.DetectionLocalizationParams.twin = 30; % length of xwav data to be read in at a time
+PARAMS.project.DetectionLocalizationParams.twin = 15; % length of xwav data to be read in at a time (s)
 PARAMS.project.DetectionLocalizationParams.xcRow = [2, 3, 4, 7, 8, 12]; % which xcov columns to use for TDOA
 PARAMS.project.DetectionLocalizationParams.frameLengthUs = 2000; % default for FFT calculation, from Triton SPICE remora
 project = PARAMS.project; save(PARAMS.projectSaveFolder + project.ConfigRelFilePath,'project'); % update config file
@@ -68,7 +68,7 @@ for k = 1:height(encFile) % for each encounter
     % already exists
     if ~detParam.OverwriteCheck
         outFiles = dir(fullfile(detParam.SavePath, '*.mat'));
-        hasMatch = any(contains({outFiles.name}, sprintf('enc%d_', encFile.encN(k)))); % note underscore helps avoid enc1 matching enc10
+        hasMatch = any(contains({outFiles.name}, "enc" + string(encFile.encN(k)) + "_")); % note underscore helps avoid enc1 matching enc10; encN can be a number or text like 1_Gg
         if hasMatch
             fprintf("Skipping encounter %d/%d (already processed) \n", k, height(encFile));
             continue
@@ -83,10 +83,30 @@ for k = 1:height(encFile) % for each encounter
     HANDLES.ui.detect.progressLabel.Text = sprintf("Running detector, encounter %d/%d", k, height(encFile));
     drawnow;
 
+    % subset xwav directories for every instrument first; skip this
+    % encounter if any instrument has no recorded data during it
+    sub = cell(1,length(instruments));
+    noData = false(1,length(instruments));
+    for j = 1:length(instruments)
+        [sub{j}.XH, sub{j}.startSample, sub{j}.endSample, sub{j}.rfTimes, sub{j}.rfSamples, sub{j}.fs] = ...
+            ww_subset_xwav_dir(XH{j}, datenum(encFile.startEnc(k)-years(2000)), datenum(encFile.endEnc(k)-years(2000))); % subset them based on times of interest
+        noData(j) = isempty(sub{j}.XH);
+    end
+    if any(noData)
+        fprintf("Skipping encounter %d/%d (%s): no xwav data for %s during %s to %s \n", k, height(encFile), ...
+            string(encFile.encN(k)), strjoin(instruments(noData),', '), string(encFile.startEnc(k)), string(encFile.endEnc(k)));
+        continue
+    end
+
     for j = 1:length(instruments) % run this per instrument
 
-        % subset xwav directory
-        [XHsub, startSample, endSample, rfTimes, rfSamples, fs] = ww_subset_xwav_dir(XH{j}, datenum(encFile.startEnc(k)-years(2000)), datenum(encFile.endEnc(k)-years(2000))); % subset them based on times of interest
+        % subset xwav directory (from above)
+        XHsub = sub{j}.XH;
+        startSample = sub{j}.startSample;
+        endSample = sub{j}.endSample;
+        rfTimes = sub{j}.rfTimes;
+        rfSamples = sub{j}.rfSamples;
+        fs = sub{j}.fs;
 
         % design filter params
         if detParam.bpEdges(2) == fs/2 % if the upper limit is the nyquist
@@ -190,7 +210,7 @@ for k = 1:height(encFile) % for each encounter
     end
 
     % save the output for this encounter
-    detFileName = [PARAMS.project.DataSourceName+"_detections_enc"+num2str(encFile.encN(k))+"_"+datestr(encFile.startEnc(k),'yymmdd_HHMMSS')+"_to_"+datestr(encFile.endEnc(k),'yymmdd_HHMMSS')+".mat"];
+    detFileName = [PARAMS.project.DataSourceName+"_detections_enc"+string(encFile.encN(k))+"_"+datestr(encFile.startEnc(k),'yymmdd_HHMMSS')+"_to_"+datestr(encFile.endEnc(k),'yymmdd_HHMMSS')+".mat"];
     save(detParam.SavePath+"\"+detFileName,"DET","freq","p")
 
     % end

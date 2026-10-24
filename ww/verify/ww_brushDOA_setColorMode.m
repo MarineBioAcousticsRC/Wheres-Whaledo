@@ -63,16 +63,13 @@ if isempty(DET) || ~isfield(brushing,'hScatter')
     return
 end
 
-C1 = brushing.params.colorMat(DET{1}.color, :);
-C2 = brushing.params.colorMat(DET{2}.color, :);
-
-set(brushing.hScatter(1),'CData',C1)
-set(brushing.hScatter(2),'CData',C1)
-set(brushing.hScatter(3),'CData',C1)
-
-set(brushing.hScatter(4),'CData',C2)
-set(brushing.hScatter(5),'CData',C2)
-set(brushing.hScatter(6),'CData',C2)
+% three scatters per array (array 1 is hScatter(1:3), array 2 is hScatter(4:6))
+for a = 1:numel(DET)
+    C = brushing.params.colorMat(DET{a}.color, :);
+    for isp = 3*(a-1)+(1:3)
+        set(brushing.hScatter(isp),'CData',C)
+    end
+end
 
 drawnow
 

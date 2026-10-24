@@ -207,7 +207,7 @@ function S = local_updateSelectedMeans(S, DET, f, Ind)
 
     % Array 2
     y2 = nan(size(f));
-    if ~isempty(Ind{2}) && ~isempty(DET{2}) && istable(DET{2}) && ismember('Spectra', DET{2}.Properties.VariableNames)
+    if numel(Ind) > 1 && numel(DET) > 1 && ~isempty(Ind{2}) && ~isempty(DET{2}) && istable(DET{2}) && ismember('Spectra', DET{2}.Properties.VariableNames)
         Sp2 = local_getSpectraNumeric(DET{2});
         if ~isempty(Sp2) && max(Ind{2}) <= size(Sp2,1)
             y2 = local_normalizeSpectra(mean(Sp2(Ind{2},:), 1)); % renormalize the mean curve itself to [0,1]

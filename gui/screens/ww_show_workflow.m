@@ -117,6 +117,15 @@ HANDLES.ui.workflow.btn5 = uibutton(center,'push', ...
     'ButtonPushedFcn', @(~,~) ww_show_visualize_tracks());
 HANDLES.ui.workflow.btn5.Layout.Row = 6;
 
+% export and visualization only support 3D tracks from two 4ch arrays for
+% now; single-4ch projects produce bearing-only tracks
+if isfield(PARAMS.project, 'ArrayOption') && PARAMS.project.ArrayOption == "1 4ch"
+    msg = "Not yet available for single 4ch projects";
+    set([HANDLES.ui.workflow.btn4, HANDLES.ui.workflow.btn5], ...
+        'Enable', 'off', ...
+        'Tooltip', msg);
+end
+
 drawnow; % make sure screen updates
 
 end

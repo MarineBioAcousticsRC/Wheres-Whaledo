@@ -526,6 +526,36 @@ refreshColumn3();
         end
         save(extractBefore(outFile, strlength(outFile)-3)+"_DET.mat",'DET','freq','p');
 
+        % cross-fix positions need two arrays; with one 4ch, save
+        % bearing-only (az/el) tracks instead
+        if numel(DET) < 2
+            whale = ww_locDOA_bearings_includeCI(DET, brushing);
+
+            % plot az and el over time for saving
+            bfig = figure();
+            for wn = 1:length(whale)
+                if isempty(whale{wn}) % if no whale with this num
+                    continue
+                end
+                subplot(2,1,1); hold on
+                scatter(whale{wn}.TDet, whale{wn}.Ang(:,1), 12, brushing.params.colorMat(whale{wn}.color(1), :), 'filled')
+                subplot(2,1,2); hold on
+                scatter(whale{wn}.TDet, whale{wn}.Ang(:,2), 12, brushing.params.colorMat(whale{wn}.color(1), :), 'filled')
+            end
+            subplot(2,1,1); ylabel('Azimuth (deg)'); grid on
+            subplot(2,1,2); ylabel('Elevation (deg)'); grid on
+            saveas(bfig,extractBefore(outFile, strlength(outFile)-3)+"_whale_bearing_DOA_fig"); % save the fig
+            close(bfig);
+
+            % saved under a different name than *whale_struct.mat so the
+            % 3D export/visualization tools don't pick it up
+            save(extractBefore(outFile, strlength(outFile)-3)+"_bearing_DOA_whale_tracks",'whale'); % save the whale struct
+
+            close all; % close brushDOA windows
+            ww_show_verify_tracks(); % go back to encounter screen
+            return
+        end
+
         % run cross-fix positions
         whale = ww_loc3D_DOAintersect_includeCI(DET, brushing);
         smoothParams.vel = 1; smoothParams.win = 10; smoothParams.maxTimeGap = 60; % vel m/s, win s (Gaussian window), maxTimeGap s

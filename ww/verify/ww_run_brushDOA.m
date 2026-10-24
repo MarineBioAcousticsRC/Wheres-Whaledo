@@ -2,6 +2,8 @@ function [DET1out, DET2out] = ww_run_brushDOA(DET1in, DET2in, f1in, f2in, pin)
 % DOAin should be a table containing at least the following entries:
 %   DOA.('TDet') = time of detection in datenum format
 %   DOA.('Ang') = azimuth an delevation angles of each detection
+%
+% For a single 4ch, pass DET2in and f2in as [] (DET2out is returned as []).
 
 global PARAMS HANDLES brushing
 warning off
@@ -17,26 +19,34 @@ if isempty(figCol)
     ww_generateColorSchemeLegend(brushing,"Whale number",labels) % if legend doesn't exist, generate it
 end
 
+% collect inputs per array (one or two 4ch)
+if isempty(DET2in) % only one 4ch
+    DETin = {DET1in};
+    fin = {f1in};
+else
+    DETin = {DET1in, DET2in};
+    fin = {f1in, f2in};
+end
+
 % add catches if this is an older file from Where'sWhaledo v1.0:
-if ~isdatetime(DET1in.TDet(1)), DET1in.TDet = datetime(DET1in.TDet,'convertfrom','datenum'); end
-if ~isdatetime(DET2in.TDet(1)), DET2in.TDet = datetime(DET2in.TDet,'convertfrom','datenum'); end
-if ~ismember('Species', DET1in.Properties.VariableNames), DET1in.Species = repmat("NaN",height(DET1in),1); end
-if ~ismember('Species',DET2in.Properties.VariableNames), DET2in.Species = repmat("NaN",height(DET2in),1); end
-if ~ismember('Spectra',DET1in.Properties.VariableNames), DET1in.Spectra = nan(height(DET1in),size(f1in,2)); end
-if ~ismember('Spectra',DET2in.Properties.VariableNames), DET2in.Spectra = nan(height(DET2in),size(f2in,2)); end
+for a = 1:numel(DETin)
+    if ~isdatetime(DETin{a}.TDet(1)), DETin{a}.TDet = datetime(DETin{a}.TDet,'convertfrom','datenum'); end
+    if ~ismember('Species', DETin{a}.Properties.VariableNames), DETin{a}.Species = repmat("NaN",height(DETin{a}),1); end
+    if ~ismember('Spectra', DETin{a}.Properties.VariableNames), DETin{a}.Spectra = nan(height(DETin{a}),size(fin{a},2)); end
+end
 
 % set global data
-run_brushDOA(DET1in, DET2in, f1in, f2in, pin);
+run_brushDOA(DETin, f1in);
 
 global DET HANDLES freq p
 
 DET1out = DET{1};
-DET2out = DET{2};
-p = pin;
-freq{1} = f1in;
-if exist('f2in','var')
-    freq{2} = f2in;
+DET2out = [];
+if numel(DET) > 1
+    DET2out = DET{2};
 end
+p = pin;
+freq = fin;
 
 if isfield(HANDLES,'ui') && isfield(HANDLES.ui,'enc') && ...
    isfield(HANDLES.ui.enc,'refreshColumn3Fcn') && ...
@@ -52,12 +62,12 @@ ww_refresh_encounter_options();
 
 end
 
-function run_brushDOA(DET1in, DET2in, f1in, f2in, pin)
+function run_brushDOA(DETin, f1in)
 global brushing DET DETprev f
 
-DET{1} = DET1in;
-DET{2} = DET2in;
+DET = DETin; % replace the whole cell so no array is left over from a previous file
 f = f1in;
+nArr = numel(DET);
 
 ww_generateSpectraPlot('init', DET, f, brushing);
 ww_generateSpectraPlot('species', DET, f, brushing);
@@ -75,99 +85,82 @@ end
 
 fig.Position = brushing.params.figPosition;
 brushing.hFig = fig;
-brushing.hScatter = gobjects(6,1);
+% three scatters per array, in order: t vs az, t vs el, az vs el
+% (array 1 is hScatter(1:3), array 2 is hScatter(4:6))
+brushing.hScatter = gobjects(3*nArr,1);
 
 %% plot DOAs:
 
 % set up plot parameters
 ms = 6; % marker size
 
-mmtime(1) = min([DET{1}.('TDet'); DET{2}.('TDet')]); % minimum time axis value
-mmtime(2) = max([DET{1}.('TDet'); DET{2}.('TDet')]); % maximum time axis value
+allTDet = [];
+allAng = [];
+for a = 1:nArr
+    allTDet = [allTDet; DET{a}.('TDet')];
+    allAng = [allAng; DET{a}.('Ang')];
+end
 
-mmAz(1) = min([DET{1}.('Ang')(:,1); DET{2}.('Ang')(:,1)]); % minimum az axis value
-mmAz(2) = max([DET{1}.('Ang')(:,1); DET{2}.('Ang')(:,1)]); % maximum az axis value
+mmtime(1) = min(allTDet); % minimum time axis value
+mmtime(2) = max(allTDet); % maximum time axis value
 
-mmEl(1) = min([DET{1}.('Ang')(:,2); DET{2}.('Ang')(:,2)]); % minimum el axis value
-mmEl(2) = max([DET{1}.('Ang')(:,2); DET{2}.('Ang')(:,2)]); % maximum el axis value
+mmAz(1) = min(allAng(:,1)); % minimum az axis value
+mmAz(2) = max(allAng(:,1)); % maximum az axis value
 
+mmEl(1) = min(allAng(:,2)); % minimum el axis value
+mmEl(2) = max(allAng(:,2)); % maximum el axis value
 
-% plot Array 1
-sp(1) = subplot(4, 6, [1, 4]);
-brushing.hScatter(1) = scatter(DET{1}.('TDet'), DET{1}.('Ang')(:,1), ms, brushing.params.colorMat(DET{1}.('color'), :), 'filled');
-datetick
-set(gca, 'Xticklabel', [])
-xlim(mmtime)
-ylim(mmAz + [-2, 2])
-ylabel('AZ1')
-grid on
-subpos = get(sp(1), 'Position');
-set(sp(1), 'Position', subpos + [-.08, .005, .08, .068])
-tb = axtoolbar('default');
-tb.Visible = 'off';
+% subplot position adjustments for each array: t vs az, t vs el, az vs el
+posAdj = {[-.08, .005, .08, .068], [-.08, -.025, .08, .068], [0, 0, .08, .07]; ... % array 1
+          [-.08, -.055, .08, .068], [-.08, -0.085, .08, .068], [0, -.06, .08, .07]}; % array 2
 
-sp(2) = subplot(4, 6, [7, 10]);
-brushing.hScatter(2) = scatter(DET{1}.('TDet'), DET{1}.('Ang')(:,2), ms, brushing.params.colorMat(DET{1}.('color'), :), 'filled');
-datetick
-set(gca, 'Xticklabel', [])
-xlim(mmtime)
-ylim(mmEl + [-2, 2])
-ylabel('EL1')
-grid on
-subpos = get(sp(2), 'Position');
-set(sp(2), 'Position', subpos + [-.08, -.025, .08, .068])
-tb = axtoolbar('default');
-tb.Visible = 'off';
-% linkaxes([sp1, sp2], 'x')
+% each array takes two rows of a 6-column grid, so one array fills the figure
+nRows = 2*nArr;
 
-sp(3) = subplot(4, 6, [5,12]);
-brushing.hScatter(3) = scatter(DET{1}.('Ang')(:,1), DET{1}.('Ang')(:,2), ms, brushing.params.colorMat(DET{1}.('color'), :), 'filled');
-axis([mmAz(1)-2, mmAz(2)+2, mmEl(1)-2, mmEl(2)+2])
-xlabel('AZ1')
-ylabel('EL1')
-grid on
-subpos = get(sp(3), 'Position');
-set(sp(3), 'Position', subpos + [0, 0, .08, .07])
-tb = axtoolbar('default');
-tb.Visible = 'off';
+for a = 1:nArr
+    k = 3*(a-1); % index offset into hScatter/sp for this array
+    rowOff = 12*(a-1); % subplot index offset for this array's rows
+    C = brushing.params.colorMat(DET{a}.('color'), :);
 
-% plot array 2
-sp(4) = subplot(4, 6, [13, 16]);
-brushing.hScatter(4) = scatter(DET{2}.('TDet'), DET{2}.('Ang')(:,1), ms, brushing.params.colorMat(DET{2}.('color'), :), 'filled');
-datetick
-set(gca, 'Xticklabel', [])
-xlim(mmtime)
-ylim(mmAz + [-2, 2])
-ylabel('AZ2')
-grid on
-subpos = get(sp(4), 'Position');
-set(sp(4), 'Position', subpos + [-.08, -.055, .08, .068])
-tb = axtoolbar('default');
-tb.Visible = 'off';
+    sp(k+1) = subplot(nRows, 6, [1, 4]+rowOff);
+    brushing.hScatter(k+1) = scatter(DET{a}.('TDet'), DET{a}.('Ang')(:,1), ms, C, 'filled');
+    datetick
+    set(gca, 'Xticklabel', [])
+    xlim(mmtime)
+    ylim(mmAz + [-2, 2])
+    ylabel("AZ"+a)
+    grid on
+    subpos = get(sp(k+1), 'Position');
+    set(sp(k+1), 'Position', subpos + posAdj{a,1})
+    tb = axtoolbar('default');
+    tb.Visible = 'off';
 
-sp(5) = subplot(4, 6, [19, 22]);
-brushing.hScatter(5) = scatter(DET{2}.('TDet'), DET{2}.('Ang')(:,2), ms, brushing.params.colorMat(DET{2}.('color'), :), 'filled');
-datetick
-xlim(mmtime)
-ylim(mmEl + [-2, 2])
-ylabel('EL2')
-grid on
-subpos = get(sp(5), 'Position');
-set(sp(5), 'Position', subpos + [-.08, -0.085, .08, .068])
-tb = axtoolbar('default');
-tb.Visible = 'off';
-% linkaxes([sp3, sp4], 'x')
+    sp(k+2) = subplot(nRows, 6, [7, 10]+rowOff);
+    brushing.hScatter(k+2) = scatter(DET{a}.('TDet'), DET{a}.('Ang')(:,2), ms, C, 'filled');
+    datetick
+    if a < nArr % only label the time axis on the bottom array
+        set(gca, 'Xticklabel', [])
+    end
+    xlim(mmtime)
+    ylim(mmEl + [-2, 2])
+    ylabel("EL"+a)
+    grid on
+    subpos = get(sp(k+2), 'Position');
+    set(sp(k+2), 'Position', subpos + posAdj{a,2})
+    tb = axtoolbar('default');
+    tb.Visible = 'off';
 
-sp(6) = subplot(4, 6, [17,24]);
-brushing.hScatter(6) = scatter(DET{2}.('Ang')(:,1), DET{2}.('Ang')(:,2), ms, brushing.params.colorMat(DET{2}.('color'), :), 'filled');
-axis([mmAz(1)-2, mmAz(2)+2, mmEl(1)-2, mmEl(2)+2])
-xlabel('AZ2')
-ylabel('EL2')
-grid on
-subpos = get(sp(6), 'Position');
-set(sp(6), 'Position', subpos + [0, -.06, .08, .07])
-tb = axtoolbar('default');
-tb.Visible = 'off';
+    sp(k+3) = subplot(nRows, 6, [5,12]+rowOff);
+    brushing.hScatter(k+3) = scatter(DET{a}.('Ang')(:,1), DET{a}.('Ang')(:,2), ms, C, 'filled');
+    axis([mmAz(1)-2, mmAz(2)+2, mmEl(1)-2, mmEl(2)+2])
+    xlabel("AZ"+a)
+    ylabel("EL"+a)
+    grid on
+    subpos = get(sp(k+3), 'Position');
+    set(sp(k+3), 'Position', subpos + posAdj{a,3})
+    tb = axtoolbar('default');
+    tb.Visible = 'off';
+end
 
 %brush on
 b = brush(fig);
@@ -185,16 +178,12 @@ end
 %% Disable Previous One Brush Action
 function onBrushDisableAction(source, eventdata)
 
-iBrushedPlot = nan(6,1);
-for isp = 1:6
-    iBrushedPlot(isp) = ~isempty(source.Children(isp).Children.BrushData);
-end
-iplot = find(iBrushedPlot);
-if ~isempty(iplot)
-    % remove highlighted data
-    for i = 1:length(iplot)
-        % unselect highlighted points
-        source.Children(iplot(i)).Children.BrushData = [];
+global brushing
+
+% unselect highlighted points on every plot
+for isp = 1:numel(brushing.hScatter)
+    if ~isempty(brushing.hScatter(isp).BrushData)
+        brushing.hScatter(isp).BrushData = [];
     end
 end
 end
@@ -203,28 +192,21 @@ end
 %% One Brush Action Brush
 function onBrushAction(source, eventdata)
 
-iBrushedPlot = nan(6,1);
-for isp = 1:6
-    iBrushedPlot(isp) = ~isempty(source.Children(isp).Children.BrushData);
-end
-iplot = find(iBrushedPlot);
-selectedData = source.Children(iplot).Children.BrushData;
-% get highlighted data on AR1:
-if iplot > 3 % subplots 4, 5, & 6 are for AR1
-    for isp = 4:6
-        % add brushed points to corresponding subplots of AR1 
-        if isp ~= iplot
-        source.Children(isp).Children.BrushData = selectedData;
-        end
-    end
-end
+global brushing
 
-% get highlighted data on AR2:
-if iplot <= 3 % subplots 1, 2, & 3 are for AR2
-    for isp = 1:3
-        % add brushed points to corresponding subplots of AR2 
+iBrushedPlot = false(numel(brushing.hScatter),1);
+for isp = 1:numel(brushing.hScatter)
+    iBrushedPlot(isp) = ~isempty(brushing.hScatter(isp).BrushData);
+end
+iplot = find(iBrushedPlot, 1);
+
+% add brushed points to the other subplots of the same array
+if ~isempty(iplot)
+    selectedData = brushing.hScatter(iplot).BrushData;
+    a = ceil(iplot/3); % array this plot belongs to
+    for isp = 3*(a-1)+(1:3)
         if isp ~= iplot
-        source.Children(isp).Children.BrushData = selectedData;
+            brushing.hScatter(isp).BrushData = selectedData;
         end
     end
 end
@@ -238,29 +220,47 @@ hManager = uigetmodemanager(source);
 set(source, 'KeyPressFcn', @keyPressCallback);
 end
 
+%% Redraw one array's plots from DET (colors and positions)
+function refreshArrayPlots(a)
+
+global brushing DET
+
+k = 3*(a-1);
+C = brushing.params.colorMat(DET{a}.('color'), :);
+
+% update t vs az plot
+set(brushing.hScatter(k+1), 'cdata', C, ...
+    'xdata', DET{a}.('TDet'), ...
+    'ydata', DET{a}.('Ang')(:,1))
+
+% update t vs el plot
+set(brushing.hScatter(k+2), 'cdata', C, ...
+    'xdata', DET{a}.('TDet'), ...
+    'ydata', DET{a}.('Ang')(:,2))
+
+% update az vs el plot
+set(brushing.hScatter(k+3), 'cdata', C, ...
+    'xdata', DET{a}.('Ang')(:,1), ...
+    'ydata', DET{a}.('Ang')(:,2))
+end
+
 %% Keypress Callback
 function keyPressCallback(source, eventdata)
 
 global brushing DET DETprev f
 
 key = eventdata.Key;
+nArr = numel(DET);
 
-% get highlighted data on AR1:
-Ind{1} = []; % highlighted data on AR1
-for isp = 4:6 % subplots 4, 5, & 6 are for AR1
-    selectedData = source.Children(isp).Children.BrushData;
-    Itemp = find(selectedData~=0);
-    Ind{1} = [Ind{1}, Itemp];
-    source.Children(isp).Children.BrushData = []; % unselect highlighted points
-end
-
-% get highlighted data on AR2:
-Ind{2} = []; % highlighted data on AR2
-for isp = 1:3 % subplots 1, 2, & 3 are for AR2
-    selectedData = source.Children(isp).Children.BrushData;
-    Itemp = find(selectedData~=0);
-    Ind{2} = [Ind{2}, Itemp];
-    source.Children(isp).Children.BrushData = []; % unselect highlighted points
+% get highlighted data on each array:
+Ind = cell(1,nArr);
+for a = 1:nArr
+    for isp = 3*(a-1)+(1:3)
+        selectedData = brushing.hScatter(isp).BrushData;
+        Itemp = find(selectedData~=0);
+        Ind{a} = [Ind{a}, Itemp];
+        brushing.hScatter(isp).BrushData = []; % unselect highlighted points
+    end
 end
 
 
@@ -271,21 +271,11 @@ if ~(isempty(numkey)||isnan(numkey)) % if input is number, assign as whale numbe
     else
         DETprev = DET; % set DETprev as current state for undo
 
-        % update AR1
-        if ~isempty(Ind{1})
-            DET{1}.('Label') = ww_pad_label_assign(DET{1}.('Label'), Ind{1}, key);
-            DET{1}.('color')(Ind{1}) = (numkey + 2);
-            for isp = 4:6
-                set(source.Children(isp).Children, 'cdata', brushing.params.colorMat(DET{1}.('color'), :))
-            end
-        end
-
-        % update AR2
-        if ~isempty(Ind{2})
-            DET{2}.('Label') = ww_pad_label_assign(DET{2}.('Label'), Ind{2}, key);
-            DET{2}.('color')(Ind{2}) = numkey + 2;
-            for isp = 1:3
-                set(source.Children(isp).Children, 'cdata', brushing.params.colorMat(DET{2}.('color'), :))
+        for a = 1:nArr
+            if ~isempty(Ind{a})
+                DET{a}.('Label') = ww_pad_label_assign(DET{a}.('Label'), Ind{a}, key);
+                DET{a}.('color')(Ind{a}) = (numkey + 2);
+                refreshArrayPlots(a)
             end
         end
 
@@ -309,21 +299,11 @@ else % if input is letter, perform associated function
             else
                 DETprev = DET; % set DETprev as current state for undo
 
-                % update AR1
-                if ~isempty(Ind{1})
-                    DET{1}.('Label') = ww_pad_label_assign(DET{1}.('Label'), Ind{1}, numkey);
-                    DET{1}.('color')(Ind{1}) = (numkey + 2);
-                    for isp = 4:6
-                        set(source.Children(isp).Children, 'cdata', brushing.params.colorMat(DET{1}.('color'), :))
-                    end
-                end
-
-                % update AR2
-                if ~isempty(Ind{2})
-                    DET{2}.('Label') = ww_pad_label_assign(DET{2}.('Label'), Ind{2}, numkey);
-                    DET{2}.('color')(Ind{2}) = numkey + 2;
-                    for isp = 1:3
-                        set(source.Children(isp).Children, 'cdata', brushing.params.colorMat(DET{2}.('color'), :))
+                for a = 1:nArr
+                    if ~isempty(Ind{a})
+                        DET{a}.('Label') = ww_pad_label_assign(DET{a}.('Label'), Ind{a}, numkey);
+                        DET{a}.('color')(Ind{a}) = (numkey + 2);
+                        refreshArrayPlots(a)
                     end
                 end
             end
@@ -333,48 +313,11 @@ else % if input is letter, perform associated function
         case 'd' % delete
             DETprev = DET; % set DETprev as current state for undo
 
-            % update AR1
-            if ~isempty(Ind{1})
-                DET{1}(Ind{1}, :) = [];
-
-                % update az vs el plot
-                set(source.Children(4).Children, 'cdata', brushing.params.colorMat(DET{1}.('color'), :), ...
-                    'xdata', DET{1}.('Ang')(:,1), ...
-                    'ydata', DET{1}.('Ang')(:,2))
-
-
-                % update t vs el plot
-                set(source.Children(5).Children, 'cdata', brushing.params.colorMat(DET{1}.('color'), :), ...
-                    'xdata', DET{1}.('TDet'), ...
-                    'ydata', DET{1}.('Ang')(:,2))
-
-                % update t vs az plot
-                set(source.Children(6).Children, 'cdata', brushing.params.colorMat(DET{1}.('color'), :), ...
-                    'xdata', DET{1}.('TDet'), ...
-                    'ydata', DET{1}.('Ang')(:,1))
-
-            end
-
-            % update AR2
-            if ~isempty(Ind{2})
-                DET{2}(Ind{2}, :) = [];
-
-                % update az vs el plot
-                set(source.Children(1).Children, 'cdata', brushing.params.colorMat(DET{2}.('color'), :), ...
-                    'xdata', DET{2}.('Ang')(:,1), ...
-                    'ydata', DET{2}.('Ang')(:,2))
-
-
-                % update t vs el plot
-                set(source.Children(2).Children, 'cdata', brushing.params.colorMat(DET{2}.('color'), :), ...
-                    'xdata', DET{2}.('TDet'), ...
-                    'ydata', DET{2}.('Ang')(:,2))
-
-                % update t vs az plot
-                set(source.Children(3).Children, 'cdata', brushing.params.colorMat(DET{2}.('color'), :), ...
-                    'xdata', DET{2}.('TDet'), ...
-                    'ydata', DET{2}.('Ang')(:,1))
-
+            for a = 1:nArr
+                if ~isempty(Ind{a})
+                    DET{a}(Ind{a}, :) = [];
+                    refreshArrayPlots(a)
+                end
             end
 
             % update spectra figure
@@ -382,6 +325,11 @@ else % if input is letter, perform associated function
             ww_refresh_encounter_options(); % deleting detections can remove a whale's last remaining label
 
         case 'a'
+            if nArr < 2
+                msgbox('Whale association requires two arrays.', 'Associate whales');
+                return
+            end
+
             Arrstruct = inputdlg('Enter labeled array (''1'' or ''2''):', 'Associate whales');
             if isempty(Arrstruct) % user cancelled the dialog instead of entering a value
                 return
@@ -394,6 +342,7 @@ else % if input is letter, perform associated function
                 unlabeledInstnum = 1;
             else
                 errordlg('Invalid instrument number')
+                return
             end
 
             whalenum = inputdlg('Enter whale number to associate(a number, or ''a'' for all): ', 'Associate whales');
@@ -420,30 +369,8 @@ else % if input is letter, perform associated function
                 end
             end
 
-            if unlabeledInstnum==1
-                % update array 1 plots
-
-                % update az vs el plot
-                set(source.Children(4).Children, 'cdata', brushing.params.colorMat(DET{1}.('color'), :))
-
-
-                % update t vs el plot
-                set(source.Children(5).Children, 'cdata', brushing.params.colorMat(DET{1}.('color'), :))
-
-                % update t vs az plot
-                set(source.Children(6).Children, 'cdata', brushing.params.colorMat(DET{1}.('color'), :))
-
-            elseif unlabeledInstnum==2
-                % update array 2 plots
-                % update az vs el plot
-                set(source.Children(1).Children, 'cdata', brushing.params.colorMat(DET{2}.('color'), :))
-
-                % update t vs el plot
-                set(source.Children(2).Children, 'cdata', brushing.params.colorMat(DET{2}.('color'), :))
-
-                % update t vs az plot
-                set(source.Children(3).Children, 'cdata', brushing.params.colorMat(DET{2}.('color'), :))
-            end
+            % update the newly labeled array's plots
+            refreshArrayPlots(unlabeledInstnum)
 
             % update spectra figure
             ww_generateSpectraPlot('species', DET, f, brushing);
@@ -479,70 +406,30 @@ else % if input is letter, perform associated function
 
             % calculate limits of time axes:
             tlim = NaT(1,2); % limit of time axes
-            for narr = 1:2
+            for narr = 1:nArr
                 tlim(1) = min([tlim(1); DET{narr}.TDet]);
                 tlim(2) = max([tlim(2); DET{narr}.TDet]);
             end
-            
-            % update AR1:
-            if ~isempty(DET{1}.Ang)
-                set(source.Children(4), 'XLim', [min(DET{1}.Ang(:,1)), max(DET{1}.Ang(:,1))], ...
-                    'YLim', [min(DET{1}.Ang(:,2))-2, max(DET{1}.Ang(:,2))+2]) % update az vs el plot
-                set(source.Children(5), 'XLim', tlim, ...
-                    'YLim', [min(DET{1}.Ang(:,2))-2, max(DET{1}.Ang(:,2))+2]) % update t vs el plot
-                set(source.Children(6), 'XLim', tlim, 'YLim', ...
-                    [min(DET{1}.Ang(:,1))-2, max(DET{1}.Ang(:,1))+2]) % update t vs az plot
-            end
 
-            % update AR2:
-            if ~isempty(DET{2}.Ang)
-                set(source.Children(1), 'XLim', [min(DET{2}.Ang(:,1)), max(DET{2}.Ang(:,1))], ...
-                    'YLim', [min(DET{2}.Ang(:,2))-2, max(DET{2}.Ang(:,2))+2]) % update az vs el plot
-                set(source.Children(2), 'XLim', tlim, ...
-                    'YLim', [min(DET{2}.Ang(:,2))-2, max(DET{2}.Ang(:,2))+2]) % update t vs el plot
-                set(source.Children(3), 'XLim', tlim, 'YLim', ...
-                    [min(DET{2}.Ang(:,1))-2, max(DET{2}.Ang(:,1))+2]) % update t vs az plot
-
+            for a = 1:nArr
+                if ~isempty(DET{a}.Ang)
+                    k = 3*(a-1);
+                    set(brushing.hScatter(k+1).Parent, 'XLim', tlim, 'YLim', ...
+                        [min(DET{a}.Ang(:,1))-2, max(DET{a}.Ang(:,1))+2]) % update t vs az plot
+                    set(brushing.hScatter(k+2).Parent, 'XLim', tlim, ...
+                        'YLim', [min(DET{a}.Ang(:,2))-2, max(DET{a}.Ang(:,2))+2]) % update t vs el plot
+                    set(brushing.hScatter(k+3).Parent, 'XLim', [min(DET{a}.Ang(:,1)), max(DET{a}.Ang(:,1))], ...
+                        'YLim', [min(DET{a}.Ang(:,2))-2, max(DET{a}.Ang(:,2))+2]) % update az vs el plot
+                end
             end
 
 
         case 'u' % undo
             DET = DETprev;
 
-            % update AR1:
-
-            % update az vs el plot
-            set(source.Children(4).Children, 'cdata', brushing.params.colorMat(DET{1}.('color'), :), ...
-                'xdata', DET{1}.('Ang')(:,1), ...
-                'ydata', DET{1}.('Ang')(:,2))
-
-
-            % update t vs el plot
-            set(source.Children(5).Children, 'cdata', brushing.params.colorMat(DET{1}.('color'), :), ...
-                'xdata', DET{1}.('TDet'), ...
-                'ydata', DET{1}.('Ang')(:,2))
-
-            % update t vs az plot
-            set(source.Children(6).Children, 'cdata', brushing.params.colorMat(DET{1}.('color'), :), ...
-                'xdata', DET{1}.('TDet'), ...
-                'ydata', DET{1}.('Ang')(:,1))
-
-            % update AR2
-
-            % update az vs el plot
-            set(source.Children(1).Children, 'cdata', brushing.params.colorMat(DET{2}.('color'), :), ...
-                'xdata', DET{2}.('Ang')(:,1), ...
-                'ydata', DET{2}.('Ang')(:,2))
-
-            % update t vs el plot
-            set(source.Children(2).Children, 'cdata', brushing.params.colorMat(DET{2}.('color'), :), ...
-                'xdata', DET{2}.('TDet'), ...
-                'ydata', DET{2}.('Ang')(:,2))
-
-            % update t vs az plot
-            set(source.Children(3).Children, 'cdata', brushing.params.colorMat(DET{2}.('color'), :), ...
-                'xdata', DET{2}.('TDet'), ...
-                'ydata', DET{2}.('Ang')(:,1))
+            for a = 1:nArr
+                refreshArrayPlots(a)
+            end
 
             % update spectra figure
             ww_generateSpectraPlot('species', DET, f);
@@ -554,6 +441,10 @@ else % if input is letter, perform associated function
 
         case 'v' % plot the 3D positions of labeled whales
 
+            if nArr < 2
+                msgbox('3D localization requires two arrays.', 'Plot 3D positions');
+                return
+            end
             ww_generate3DPlot('plot', DET, brushing);
 
     end % end key input toggles

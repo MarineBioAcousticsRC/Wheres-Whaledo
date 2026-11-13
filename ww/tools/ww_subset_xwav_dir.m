@@ -18,7 +18,9 @@ global PARAMS
 xwavNameStarts = regexp({XH.name}, '\d{6}_\d{6}','match','once'); % find the start times from the xwav names, use this to subset initially
 xwavNameStarts = datenum(datetime(xwavNameStarts, 'inputformat','yyMMdd_HHmmss')-years(2000));
 idx = find(xwavNameStarts>=tstart & xwavNameStarts<=tend);
-idx = [idx(1)-1:1:idx(end)]; % shift back a bin to get the file before
+if idx(1)>1
+    idx = [idx(1)-1:1:idx(end)]; % shift back a bin to get the file before
+end
 XH = XH(idx,:);
 
 % read the xwav headers
@@ -41,6 +43,7 @@ endSample = cellfun(@sum,rfSamples);
 
 % first, for start sample
 btwnIdx = find(isbetween(tstart,startXwavs,endXwavs)); % find xwav we start within
+if ~isempty(btwnIdx)
 rfbtwnIdx = find(isbetween(tstart,rfTimes{btwnIdx}(:,1),rfTimes{btwnIdx}(:,2))); % find rf we start within
 tDiff = (tstart - rfTimes{btwnIdx}(rfbtwnIdx,1)) * PARAMS.conversion.spd;
 sDiff = tDiff * hdr.SampleRate;
@@ -53,8 +56,10 @@ else % if we're in a subsequent raw file
     startSample(btwnIdx) = aggSamples + sDiff;
 end
 
+end
 % now, for end sample
 btwnIdx = find(isbetween(tend,startXwavs,endXwavs)); % find xwav we start within
+if ~isempty(btwnIdx)
 rfbtwnIdx = find(isbetween(tend,rfTimes{btwnIdx}(:,1),rfTimes{btwnIdx}(:,2))); % find rf we start within
 tDiff = (tend - rfTimes{btwnIdx}(rfbtwnIdx,1)) * PARAMS.conversion.spd;
 sDiff = tDiff * hdr.SampleRate;
@@ -65,6 +70,7 @@ else % if we're in a subsequent raw file
     rfBefore = rfbtwnIdx - 1;
     aggSamples = sum(rfSamples{btwnIdx}([1:1:rfBefore]));
     endSample(btwnIdx) = aggSamples + sDiff;
+end
 end
 
 fs = hdr.SampleRate; % assumes all xwavs have the same sample rate

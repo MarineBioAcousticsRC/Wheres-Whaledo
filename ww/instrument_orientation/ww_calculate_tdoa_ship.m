@@ -16,7 +16,7 @@ XH = ww_build_xwav_dir(xwavPath); % build directory of files
 
 % set final params
 shipTDOA.nxc = shipTDOA.XcovWindow_s * fs; % number of samples to use in xcov
-shipTDOA.nTDOA = round((tend-tstart)*PARAMS.conversion.spd/shipTDOA.XcovWindow_s); % estimation for waitbar
+shipTDOA.nTDOA = ceil(sum(endSample-startSample+1)/shipTDOA.nxc); % available audio windows
 [b, a] = ellip(4,0.1,40,[shipTDOA.bpLow_Hz shipTDOA.bpHigh_Hz].*2/fs); % filter coefficients
 shipTDOA.ixcov = [2, 3, 4, 7, 8, 12]; % columns of xcov to use for TDOA
 

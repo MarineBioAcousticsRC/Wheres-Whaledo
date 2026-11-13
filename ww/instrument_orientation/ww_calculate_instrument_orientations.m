@@ -27,11 +27,70 @@ else
 end
 
 
-% next, calculate TDOA
-[Txwav, TDOA, shipTDOA] = ww_calculate_tdoa_ship(Tship(1), Tship(end), HANDLES.ui.calc.xwavPath.Value);
-save(PARAMS.projectSaveFolder + PARAMS.project.InstrumentOrientationRelPath + "\" + HANDLES.ui.calc.instrumentName.Value + "_shipTDOA.mat", "Txwav", "TDOA","shipTDOA");
+% next, calculate TDOA, or reuse the saved cross-correlation output when
+% none of its inputs changed (instrument location and sound speed don't
+% enter the cross-correlation, so changing them alone needs no rerun)
+tdoaFile = PARAMS.projectSaveFolder + PARAMS.project.InstrumentOrientationRelPath + "\" + HANDLES.ui.calc.instrumentName.Value + "_shipTDOA.mat";
+reused = false; reuseMsg = "";
+if isfield(HANDLES.ui.calc, 'reuseXcov') && isvalid(HANDLES.ui.calc.reuseXcov) && HANDLES.ui.calc.reuseXcov.Value
+    [reused, Txwav, TDOA, shipTDOA, reuseMsg] = ww_reuse_ship_tdoa(tdoaFile, Tship);
+end
+if ~reused
+    [Txwav, TDOA, shipTDOA] = ww_calculate_tdoa_ship(Tship(1), Tship(end), HANDLES.ui.calc.xwavPath.Value);
+end
+save(tdoaFile, "Txwav", "TDOA","shipTDOA");
 
 ww_show_brushTDOA_hydPosInv(Tship, lat, lon, Txwav, TDOA, shipTDOA) % show brushTDOA interface
+if reused % say so on the brushing screen
+    fprintf('%s\n', reuseMsg);
+    HANDLES.ui.newscreen.text.Text = reuseMsg + newline + newline + HANDLES.ui.newscreen.text.Text;
+end
+
+end
+
+function [ok, Txwav, TDOA, shipTDOA, msg] = ww_reuse_ship_tdoa(tdoaFile, Tship)
+
+% ww_reuse_ship_tdoa
+%
+% nested function: reuse the ship TDOAs saved by an earlier calculation if
+% the cross-correlation inputs are unchanged (xwav path, load segment, xcov
+% window, bandpass edges) and the saved TDOAs span the current ship track.
+% The returned shipTDOA carries the current settings (instrument location,
+% sound speed, ...) plus the derived cross-correlation settings.
+
+global PARAMS HANDLES
+
+ok = false; Txwav = []; TDOA = []; shipTDOA = []; msg = "";
+if ~isfile(tdoaFile), return; end
+cached = load(tdoaFile);
+if ~all(isfield(cached, {'Txwav','TDOA','shipTDOA'})) || isempty(cached.Txwav), return; end
+
+current = PARAMS.project.InstrumentOrientationParams.(HANDLES.ui.calc.instrumentName.Value);
+old = cached.shipTDOA;
+
+% inputs that change the cross-correlation must match
+stripSep = @(p) regexprep(strtrim(char(string(p))), '[\\/]+$', '');
+if ~isfield(old, 'XwavPath') || ~strcmp(stripSep(old.XwavPath), stripSep(current.XwavPath)), return; end
+numFields = {'LoadSegment_s','XcovWindow_s','bpLow_Hz','bpHigh_Hz'};
+for k = 1:numel(numFields)
+    if ~isfield(old, numFields{k}) || ~isequal(old.(numFields{k}), current.(numFields{k})), return; end
+end
+
+% saved TDOAs must cover the current ship track, allowing for the partial
+% xcov windows dropped at the ends
+tol = seconds(2*current.XcovWindow_s + 1);
+if min(cached.Txwav) > Tship(1) + tol || max(cached.Txwav) < Tship(end) - tol, return; end
+
+ok = true;
+Txwav = cached.Txwav;
+TDOA = cached.TDOA;
+shipTDOA = current;
+for fld = ["nxc","nTDOA","ixcov"] % derived cross-correlation settings
+    if isfield(old, fld), shipTDOA.(fld) = old.(fld); end
+end
+info = dir(tdoaFile);
+msg = "Reused the ship TDOAs saved " + string(datetime(info.datenum, 'ConvertFrom','datenum', 'Format','yyyy-MM-dd HH:mm')) + ...
+    " (cross-correlation skipped). To force a rerun, untick 'Reuse saved ship cross-correlation' on the Calculate screen.";
 
 end
 
@@ -107,6 +166,10 @@ while  ischar(tline)
     tline = fgetl(fid);
 end
 fclose(fid); % close file
+
+% handle UTC midnight rollover: ymd is the date of the FIRST fix;
+% add a day each time the clock jumps backwards by more than 12 h
+T = T + days(cumsum([false, diff(T) < -hours(12)]));
 
 % remove redundant readings
 [Tu, ia, ~] = unique(T); % get indices of unique readings

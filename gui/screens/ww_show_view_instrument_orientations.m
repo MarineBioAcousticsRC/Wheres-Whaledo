@@ -82,8 +82,9 @@ for k = 1:numel(array)
             };
     end
 
+    instrumentName = string(extractBefore(string(array{k}.FileName), "_harp4chParams.mat"));
     [HANDLES.ui.orient.panel(k), HANDLES.ui.orient.ax1(k), HANDLES.ui.orient.ax2(k)] = ...
-        ww_build_instrument_panel(main, k, infoText);
+        ww_build_instrument_panel(main, k, infoText, instrumentName);
 
     % plot figures here
     axLoc = HANDLES.ui.orient.ax1(k);   % first plot area in column k
@@ -162,7 +163,7 @@ end
 
 end
 
-function [panel, ax1, ax2] = ww_build_instrument_panel(parent, col, infoText)
+function [panel, ax1, ax2] = ww_build_instrument_panel(parent, col, infoText, instrumentName)
 
 % ww_build_instrument_panel()
 %
@@ -173,8 +174,8 @@ panel = uipanel(parent, 'Title', "");
 panel.Layout.Row = 1;
 panel.Layout.Column = col;
 
-gl = uigridlayout(panel, [3 1]);
-gl.RowHeight = {110, '3x', '1x'};   % text | plot1 | plot2
+gl = uigridlayout(panel, [4 1]);
+gl.RowHeight = {110, '3x', '1x', 32};   % text | plot1 | plot2 | re-brush buttons
 gl.Padding = [12 10 12 12];
 gl.RowSpacing = 10;
 
@@ -192,5 +193,73 @@ ax1.Layout.Row = 2;
 % axes 2
 ax2 = uiaxes(gl);
 ax2.Layout.Row = 3;
+
+% go back to brushing without rerunning the ship cross-correlation
+[canContinue, canRestart] = ww_rebrush_available(instrumentName);
+onOff = ["off","on"];
+btnGrid = uigridlayout(gl, [1 2]);
+btnGrid.Layout.Row = 4;
+btnGrid.Padding = [0 0 0 0];
+btnGrid.ColumnSpacing = 10;
+uibutton(btnGrid,'push', ...
+    'Text',"Continue brushing", ...
+    'Tooltip',"Remove more points, starting from your last saved brushing", ...
+    'Enable',onOff(canContinue+1), ...
+    'ButtonPushedFcn',@(~,~) ww_rebrush_instrument(instrumentName, "continue"));
+uibutton(btnGrid,'push', ...
+    'Text',"Start brushing over", ...
+    'Tooltip',"Brush again from all of the ship TDOAs (no cross-correlation rerun)", ...
+    'Enable',onOff(canRestart+1), ...
+    'ButtonPushedFcn',@(~,~) ww_rebrush_instrument(instrumentName, "restart"));
+
+end
+
+function [canContinue, canRestart] = ww_rebrush_available(instrumentName)
+
+% ww_rebrush_available()
+%
+% check what is saved for going back to brushing: canContinue needs the
+% brushed points saved in the project config; canRestart needs the ship
+% track and ship TDOA files written when the orientation was calculated
+% (neither exists for precalculated ensembles copied from the repo)
+
+global PARAMS
+
+field = matlab.lang.makeValidName(instrumentName);
+canContinue = isfield(PARAMS.project, 'InstrumentOrientationParams') && ...
+    isfield(PARAMS.project.InstrumentOrientationParams, field) && ...
+    all(isfield(PARAMS.project.InstrumentOrientationParams.(field), ...
+    {'t','TDOA','S','H','TDOAexp','nPairs','InstrumentName'}));
+
+ioFolder = PARAMS.projectSaveFolder + PARAMS.project.InstrumentOrientationRelPath;
+canRestart = isfile(ioFolder + "\" + instrumentName + "_shipTDOA.mat") && ...
+    isfile(ioFolder + "\" + instrumentName + "_shipLatLon.mat");
+
+end
+
+function ww_rebrush_instrument(instrumentName, mode)
+
+% ww_rebrush_instrument()
+%
+% reopen the brushTDOA screen for an instrument without recalculating the
+% ship TDOAs (the slow cross-correlation step).
+%   mode "continue": resume from the brushed points saved with the project
+%   mode "restart":  reload all ship TDOAs saved when the orientation was
+%                    first calculated
+
+global PARAMS
+
+switch mode
+    case "continue"
+        field = matlab.lang.makeValidName(instrumentName);
+        ww_show_brushTDOA_hydPosInv([], [], [], [], [], [], ...
+            PARAMS.project.InstrumentOrientationParams.(field));
+    case "restart"
+        ioFolder = PARAMS.projectSaveFolder + PARAMS.project.InstrumentOrientationRelPath;
+        ship = load(ioFolder + "\" + instrumentName + "_shipLatLon.mat");
+        tdoa = load(ioFolder + "\" + instrumentName + "_shipTDOA.mat");
+        ww_show_brushTDOA_hydPosInv(ship.Tship, ship.lat, ship.lon, ...
+            tdoa.Txwav, tdoa.TDOA, tdoa.shipTDOA);
+end
 
 end

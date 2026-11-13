@@ -21,20 +21,14 @@ function [x, t, fs] = ww_read_xwav(filePath, samples, rfTimes, rfSamples) % read
 x = double(x); % convert to double from integer
 
 % calculate timestamps from rf times
-rfCumSum = [0 cumsum(rfSamples)];
-startRf = discretize(samples(1),rfCumSum); % which rf do we start
-endRf = discretize(samples(2),rfCumSum); % which rf do we end
-if startRf == endRf % if it's the same rf
-    t0 = datetime(rfTimes(startRf,1),'convertfrom','datenum');
-    t = t0 + seconds((samples(1)-rfCumSum(startRf):samples(2)-rfCumSum(startRf)) / fs); t = t';
-elseif (endRf - startRf) == 1 % if we span two files
-    t0 = datetime(rfTimes(startRf,1),'convertfrom','datenum');
-    ta = t0 + seconds((samples(1)-rfCumSum(startRf):rfSamples(startRf)) / fs); ta = ta';
-    t0 = datetime(rfTimes(endRf,1),'convertfrom','datenum');
-    tb = t0 + seconds((1:samples(2)-rfCumSum(endRf)) / fs); tb = tb';
-    t = [ta; tb];
-else % if we span more files, there's probably something wrong
-    keyboard
+rfCumSum = [0 cumsum(rfSamples(:)')];
+t = NaT(1,samples(2)-samples(1)+1);
+for r = 1:numel(rfSamples)
+    aa = max(samples(1),rfCumSum(r)+1);
+    bb = min(samples(2),rfCumSum(r+1));
+    if aa <= bb
+        t(aa-samples(1)+1:bb-samples(1)+1) = datetime(rfTimes(r,1),'convertfrom','datenum') + seconds(((aa:bb)-rfCumSum(r)-1)/fs);
+    end
 end
 
 
